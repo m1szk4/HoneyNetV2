@@ -1,0 +1,27 @@
+# HoneyNetV2 Logstash Pipelines Configuration
+# Defines all ETL pipelines for different data sources
+
+- pipeline.id: cowrie-pipeline
+  path.config: "/usr/share/logstash/pipeline/cowrie.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+
+- pipeline.id: dionaea-pipeline
+  path.config: "/usr/share/logstash/pipeline/dionaea.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+
+- pipeline.id: conpot-pipeline
+  path.config: "/usr/share/logstash/pipeline/conpot.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 125
+
+- pipeline.id: suricata-pipeline
+  path.config: "/usr/share/logstash/pipeline/suricata.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 250
+
+- pipeline.id: zeek-pipeline
+  path.config: "/usr/share/logstash/pipeline/zeek.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 250

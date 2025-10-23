@@ -1,0 +1,7 @@
+# Emerging Threats Rules
+# Download latest rules from: https://rules.emergingthreats.net/
+#
+# To update rules automatically, add this to a cron job:
+# 0 2 * * * cd /opt/honeynet/configs/suricata/rules && wget -O emerging-threats.rules.tmp https://rules.emergingthreats.net/open/suricata/emerging.rules.tar.gz && tar -xzf emerging-threats.rules.tmp && rm emerging-threats.rules.tmp && docker-compose -f /opt/honeynet/docker-compose.yml restart suricata
+#
+# For now, this is a placeholder. Add rules manually or use suricata-update tool.

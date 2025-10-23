@@ -1,0 +1,200 @@
+# Suricata IDS Configuration for HoneyNetV2
+
+%YAML 1.1
+---
+
+# Variables
+vars:
+  address-groups:
+    HOME_NET: "[172.20.0.0/24]"  # Honeypot DMZ network
+    EXTERNAL_NET: "!$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    SSH_SERVERS: "$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80,8080"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
+
+# Default rule path
+default-rule-path: /etc/suricata/rules
+rule-files:
+  - local.rules
+  - emerging-threats.rules
+  - honeypot-custom.rules
+
+# Outputs
+outputs:
+  - fast:
+      enabled: yes
+      filename: fast.log
+      append: yes
+
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert:
+            payload: yes
+            payload-buffer-size: 4kb
+            payload-printable: yes
+            packet: yes
+            metadata: yes
+            tagged-packets: yes
+        - anomaly:
+            enabled: yes
+        - http:
+            extended: yes
+        - dns:
+            enabled: yes
+        - tls:
+            enabled: yes
+            extended: yes
+        - files:
+            enabled: yes
+            force-magic: yes
+        - ssh:
+            enabled: yes
+        - smtp:
+            enabled: yes
+        - ftp:
+            enabled: yes
+        - smb:
+            enabled: yes
+        - stats:
+            enabled: yes
+            totals: yes
+            threads: yes
+        - flow:
+            enabled: yes
+
+  - stats:
+      enabled: yes
+      filename: stats.log
+      interval: 60
+
+# Capture settings
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
+
+# Stream engine
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: no
+  reassembly:
+    memcap: 256mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+
+# Host table
+host:
+  hash-size: 4096
+  prealloc: 1000
+  memcap: 32mb
+
+# Flow settings
+flow:
+  memcap: 128mb
+  hash-size: 65536
+  prealloc: 10000
+  emergency-recovery: 30
+
+# Defrag settings
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65535
+  max-frags: 65535
+  prealloc: yes
+  timeout: 60
+
+# Application layer protocols
+app-layer:
+  protocols:
+    tls:
+      enabled: yes
+      detection-ports:
+        dp: 443
+    http:
+      enabled: yes
+      memcap: 64mb
+    ftp:
+      enabled: yes
+      memcap: 64mb
+    ssh:
+      enabled: yes
+    smtp:
+      enabled: yes
+      memcap: 64mb
+    smb:
+      enabled: yes
+      memcap: 64mb
+    dns:
+      tcp:
+        enabled: yes
+      udp:
+        enabled: yes
+    modbus:
+      enabled: yes
+      detection-ports:
+        dp: 502
+
+# Performance tuning
+threading:
+  set-cpu-affinity: no
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 0 ]
+    - worker-cpu-set:
+        cpu: [ "all" ]
+  detect-thread-ratio: 1.0
+
+# Logging
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        level: info
+        filename: /var/log/suricata/suricata.log
+    - syslog:
+        enabled: no
+
+# Rule reloading
+detect:
+  profile: medium
+  custom-values:
+    toclient-groups: 3
+    toserver-groups: 25
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+  prefilter:
+    default: mpm
+
+# PCAP logging
+pcap-log:
+  enabled: no
+  filename: log.pcap
+  limit: 1000mb
+  max-files: 2000
