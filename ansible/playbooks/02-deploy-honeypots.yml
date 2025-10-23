@@ -1,0 +1,115 @@
+---
+# HoneyNetV2 Deployment Playbook
+# Deploys the complete honeypot infrastructure using Docker Compose
+
+- name: Deploy HoneyNet Infrastructure
+  hosts: honeynet
+  become: yes
+  vars:
+    project_dir: /opt/honeynet
+    repo_url: "https://github.com/m1szk4/HoneyNetV2.git"
+    repo_branch: "main"
+
+  tasks:
+    - name: Ensure project directory exists
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Clone or update HoneyNetV2 repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ project_dir }}"
+        version: "{{ repo_branch }}"
+        force: yes
+      register: git_result
+
+    - name: Check if .env file exists
+      stat:
+        path: "{{ project_dir }}/.env"
+      register: env_file
+
+    - name: Copy .env.example to .env if not exists
+      copy:
+        src: "{{ project_dir }}/.env.example"
+        dest: "{{ project_dir }}/.env"
+        remote_src: yes
+      when: not env_file.stat.exists
+
+    - name: Display message about .env configuration
+      debug:
+        msg: "Please configure {{ project_dir }}/.env with your settings before starting services"
+      when: not env_file.stat.exists
+
+    - name: Create data directories
+      file:
+        path: "{{ project_dir }}/data/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - cowrie
+        - dionaea
+        - conpot
+        - suricata
+        - zeek
+        - clickhouse
+        - grafana
+        - logstash
+
+    - name: Set correct permissions for data directories
+      file:
+        path: "{{ project_dir }}/data"
+        state: directory
+        recurse: yes
+        mode: '0755'
+
+    - name: Pull Docker images
+      command: docker-compose pull
+      args:
+        chdir: "{{ project_dir }}"
+      register: pull_result
+      changed_when: "'Pulled' in pull_result.stdout or 'Downloaded' in pull_result.stdout"
+
+    - name: Start HoneyNet services
+      command: docker-compose up -d
+      args:
+        chdir: "{{ project_dir }}"
+      register: compose_up
+      changed_when: "'Started' in compose_up.stderr or 'Created' in compose_up.stderr"
+
+    - name: Wait for services to be healthy
+      pause:
+        seconds: 30
+
+    - name: Check Docker container status
+      command: docker-compose ps
+      args:
+        chdir: "{{ project_dir }}"
+      register: container_status
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+
+    - name: Verify ClickHouse is accessible
+      uri:
+        url: "http://localhost:8123/ping"
+        method: GET
+      register: clickhouse_ping
+      retries: 5
+      delay: 10
+      until: clickhouse_ping.status == 200
+      ignore_errors: yes
+
+    - name: Display deployment success message
+      debug:
+        msg: |
+          HoneyNet deployment complete!
+          - Grafana: http://{{ ansible_host }}:3000
+          - Jupyter: http://{{ ansible_host }}:8888
+          - ClickHouse: http://{{ ansible_host }}:8123
+
+          Please check container logs for any issues:
+          cd {{ project_dir }} && docker-compose logs -f

@@ -1,0 +1,187 @@
+---
+# HoneyNetV2 Docker Installation Playbook
+# Installs Docker, Docker Compose, and required dependencies
+
+- name: Install Docker and Docker Compose
+  hosts: honeynet
+  become: yes
+  vars:
+    docker_compose_version: "2.23.0"
+    python_version: "3.11"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install dependencies for Docker repository
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - python3-pip
+          - python3-setuptools
+          - git
+        state: present
+
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Update apt cache after adding Docker repo
+      apt:
+        update_cache: yes
+
+    - name: Install Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install Docker Compose (standalone)
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Create symbolic link for docker-compose
+      file:
+        src: /usr/local/bin/docker-compose
+        dest: /usr/bin/docker-compose
+        state: link
+
+    - name: Install Python 3.11 and pip
+      apt:
+        name:
+          - python3.11
+          - python3.11-dev
+          - python3.11-venv
+          - python3-pip
+        state: present
+
+    - name: Install Python Docker SDK
+      pip:
+        name:
+          - docker
+          - docker-compose
+        executable: pip3
+        state: present
+
+    - name: Add current user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Create Docker daemon configuration
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            },
+            "live-restore": true,
+            "userland-proxy": false,
+            "iptables": true,
+            "ip-forward": false,
+            "default-address-pools": [
+              {
+                "base": "172.20.0.0/16",
+                "size": 24
+              }
+            ]
+          }
+      notify: Restart Docker
+
+    - name: Configure Docker log rotation
+      copy:
+        dest: /etc/logrotate.d/docker
+        content: |
+          /var/lib/docker/containers/*/*.log {
+            daily
+            rotate 7
+            compress
+            delaycompress
+            missingok
+            notifempty
+            copytruncate
+          }
+
+    - name: Install additional monitoring tools
+      apt:
+        name:
+          - htop
+          - iotop
+          - nethogs
+          - tcpdump
+          - net-tools
+          - iftop
+          - sysstat
+        state: present
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      debug:
+        msg: "Docker installed: {{ docker_version.stdout }}"
+
+    - name: Verify Docker Compose installation
+      command: docker-compose --version
+      register: compose_version
+      changed_when: false
+
+    - name: Display Docker Compose version
+      debug:
+        msg: "Docker Compose installed: {{ compose_version.stdout }}"
+
+    - name: Test Docker functionality
+      command: docker run --rm hello-world
+      register: docker_test
+      changed_when: false
+
+    - name: Display Docker test result
+      debug:
+        msg: "Docker is working correctly"
+      when: "'Hello from Docker!' in docker_test.stdout"
+
+  handlers:
+    - name: Restart Docker
+      systemd:
+        name: docker
+        state: restarted
