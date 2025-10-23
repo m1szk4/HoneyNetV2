@@ -1,0 +1,22 @@
+# Grafana ClickHouse Datasource Configuration
+# Automatically provisions ClickHouse as a data source in Grafana
+
+apiVersion: 1
+
+datasources:
+  - name: HoneyNet ClickHouse
+    type: grafana-clickhouse-datasource
+    access: proxy
+    url: http://clickhouse:8123
+    jsonData:
+      defaultDatabase: honeynet
+      protocol: http
+      server: clickhouse
+      port: 8123
+      username: grafana
+      tlsSkipVerify: true
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}
+    isDefault: true
+    editable: true
+    version: 1

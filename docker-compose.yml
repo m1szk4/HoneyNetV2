@@ -1,0 +1,336 @@
+version: '3.8'
+
+# HoneyNetV2 - Complete Honeypot Infrastructure
+# Architecture: DMZ honeypots + IDS + Storage + Analytics
+
+networks:
+  # DMZ network for honeypots (isolated, no outbound access)
+  honeypot_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${HONEYPOT_SUBNET:-172.20.0.0/24}
+          gateway: ${HONEYPOT_GATEWAY:-172.20.0.1}
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"  # Disable NAT/outbound
+      com.docker.network.bridge.enable_icc: "true"             # Allow inter-container communication
+
+  # Management network for backend services
+  management_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${MANAGEMENT_SUBNET:-172.21.0.0/24}
+          gateway: ${MANAGEMENT_GATEWAY:-172.21.0.1}
+
+volumes:
+  clickhouse_data:
+  grafana_data:
+
+services:
+  # =============================================================================
+  # HONEYPOTS - Emulation Layer
+  # =============================================================================
+
+  # Cowrie - SSH/Telnet Honeypot
+  cowrie:
+    image: cowrie/cowrie:latest
+    container_name: honeynet-cowrie
+    restart: unless-stopped
+    networks:
+      honeypot_net:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "22:2222"      # SSH
+      - "23:2223"      # Telnet
+      - "2323:2223"    # Telnet alternate
+    volumes:
+      - ./configs/cowrie/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg:ro
+      - ./configs/cowrie/userdb.txt:/cowrie/cowrie-git/etc/userdb.txt:ro
+      - ./data/cowrie:/cowrie/cowrie-git/var:rw
+    environment:
+      - TZ=${TZ:-UTC}
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 512m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Dionaea - Multi-protocol Honeypot (SMB, HTTP, FTP, MSSQL)
+  dionaea:
+    image: dinotools/dionaea:latest
+    container_name: honeynet-dionaea
+    restart: unless-stopped
+    networks:
+      honeypot_net:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "21:21"        # FTP
+      - "80:80"        # HTTP
+      - "443:443"      # HTTPS
+      - "445:445"      # SMB
+      - "3306:3306"    # MySQL
+      - "1433:1433"    # MSSQL
+      - "8080:8080"    # HTTP alternate
+    volumes:
+      - ./configs/dionaea/dionaea.cfg:/opt/dionaea/etc/dionaea/dionaea.cfg:ro
+      - ./data/dionaea:/opt/dionaea/var:rw
+    environment:
+      - TZ=${TZ:-UTC}
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 512m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Conpot - ICS/SCADA Honeypot
+  conpot:
+    image: honeynet/conpot:latest
+    container_name: honeynet-conpot
+    restart: unless-stopped
+    networks:
+      honeypot_net:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "102:102"      # S7comm
+      - "502:502"      # Modbus
+      - "161:161/udp"  # SNMP
+      - "47808:47808/udp"  # BACnet
+      - "623:623/udp"  # IPMI
+    volumes:
+      - ./data/conpot:/var/log/conpot:rw
+    environment:
+      - TZ=${TZ:-UTC}
+      - CONPOT_TEMPLATE=default
+      - CONPOT_JSON_LOG=/var/log/conpot/conpot.json
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 512m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # IDS/MONITORING - Analysis Layer
+  # =============================================================================
+
+  # Suricata - Network IDS
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: honeynet-suricata
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./configs/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./configs/suricata/rules:/etc/suricata/rules:ro
+      - ./data/suricata:/var/log/suricata:rw
+    environment:
+      - TZ=${TZ:-UTC}
+      - SURICATA_OPTIONS=-i eth0
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    mem_limit: ${SURICATA_MEM_LIMIT:-2g}
+    cpus: ${SURICATA_THREADS:-2}
+    command: >
+      -i eth0
+      -c /etc/suricata/suricata.yaml
+      --set logging.outputs.1.eve-log.filename=/var/log/suricata/eve.json
+      -v
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Zeek - Network Security Monitor
+  zeek:
+    image: blacktop/zeek:latest
+    container_name: honeynet-zeek
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./configs/zeek/local.zeek:/usr/local/zeek/share/zeek/site/local.zeek:ro
+      - ./configs/zeek/scripts:/usr/local/zeek/share/zeek/site/scripts:ro
+      - ./data/zeek:/nsm/zeek/logs:rw
+    environment:
+      - TZ=${TZ:-UTC}
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    mem_limit: ${ZEEK_MEM_LIMIT:-2g}
+    cpus: ${ZEEK_THREADS:-1.5}
+    command: -i eth0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # STORAGE & ETL - Data Layer
+  # =============================================================================
+
+  # ClickHouse - OLAP Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.12
+    container_name: honeynet-clickhouse
+    restart: unless-stopped
+    networks:
+      management_net:
+        ipv4_address: 172.21.0.10
+    ports:
+      - "8123:8123"    # HTTP interface
+      - "9000:9000"    # Native TCP
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse:rw
+      - ./configs/clickhouse/init-schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./configs/clickhouse/users.xml:/etc/clickhouse-server/users.d/custom-users.xml:ro
+    environment:
+      - TZ=${TZ:-UTC}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-honeynet}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-honeynet}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-changeme}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    mem_limit: 4g
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Logstash - ETL Pipeline
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: honeynet-logstash
+    restart: unless-stopped
+    networks:
+      - management_net
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ./configs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./configs/logstash/pipelines:/usr/share/logstash/pipeline:ro
+      - ./data/cowrie:/input/cowrie:ro
+      - ./data/dionaea:/input/dionaea:ro
+      - ./data/conpot:/input/conpot:ro
+      - ./data/suricata:/input/suricata:ro
+      - ./data/zeek:/input/zeek:ro
+    environment:
+      - TZ=${TZ:-UTC}
+      - LS_JAVA_OPTS=-Xmx1g -Xms1g
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-honeynet}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-changeme}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-honeynet}
+      - ANON_SALT=${ANON_SECRET_KEY:-default_secret_change_me}
+    mem_limit: 2g
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # VISUALIZATION & ANALYSIS - Presentation Layer
+  # =============================================================================
+
+  # Grafana - Visualization Dashboard
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: honeynet-grafana
+    restart: unless-stopped
+    networks:
+      management_net:
+        ipv4_address: 172.21.0.20
+    depends_on:
+      - clickhouse
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana:rw
+      - ./configs/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./configs/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - TZ=${TZ:-UTC}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+    mem_limit: 512m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Jupyter - Data Analysis Notebooks
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: honeynet-jupyter
+    restart: unless-stopped
+    networks:
+      management_net:
+        ipv4_address: 172.21.0.30
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work:rw
+      - ./data:/home/jovyan/data:ro
+      - ./scripts/etl:/home/jovyan/scripts:ro
+    environment:
+      - TZ=${TZ:-UTC}
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-honeynet}
+      - GRANT_SUDO=yes
+    user: root
+    command: start-notebook.sh --NotebookApp.token='${JUPYTER_TOKEN:-honeynet}' --NotebookApp.password='' --ServerApp.allow_origin='*'
+    mem_limit: 2g
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

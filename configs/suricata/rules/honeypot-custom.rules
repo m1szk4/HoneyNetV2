@@ -1,0 +1,78 @@
+# Custom Suricata Rules for HoneyNetV2
+# Honeypot-specific attack detection
+
+# SSH/Telnet Brute Force Detection
+alert tcp any any -> $HOME_NET 22 (msg:"HONEYPOT SSH Multiple Failed Login Attempts"; flow:to_server,established; content:"Failed password"; threshold:type threshold, track by_src, count 5, seconds 60; classtype:attempted-user; sid:1000001; rev:1;)
+
+alert tcp any any -> $HOME_NET 23 (msg:"HONEYPOT Telnet Brute Force Attempt"; flow:to_server,established; content:"Login incorrect"; threshold:type threshold, track by_src, count 5, seconds 60; classtype:attempted-user; sid:1000002; rev:1;)
+
+# Mirai Botnet Detection
+alert tcp any any -> $HOME_NET 23 (msg:"HONEYPOT Mirai Botnet Default Credentials"; flow:to_server,established; content:"admin"; content:"admin"; distance:0; classtype:trojan-activity; sid:1000003; rev:1;)
+
+alert tcp any any -> $HOME_NET 23 (msg:"HONEYPOT Mirai Scanner Activity"; flow:to_server,established; content:"/bin/busybox"; nocase; classtype:trojan-activity; sid:1000004; rev:1;)
+
+# Malware Download Attempts
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Malware Download wget"; flow:to_server,established; content:"wget"; nocase; content:"http"; nocase; distance:0; classtype:trojan-activity; sid:1000005; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Malware Download curl"; flow:to_server,established; content:"curl"; nocase; content:"-O"; nocase; distance:0; classtype:trojan-activity; sid:1000006; rev:1;)
+
+# Shell Command Injection
+alert tcp any any -> $HOME_NET 80 (msg:"HONEYPOT HTTP Command Injection Attempt"; flow:to_server,established; content:"/bin/sh"; nocase; http_uri; classtype:web-application-attack; sid:1000007; rev:1;)
+
+alert tcp any any -> $HOME_NET 80 (msg:"HONEYPOT HTTP Shell Upload Attempt"; flow:to_server,established; content:"<?php"; http_client_body; content:"system"; distance:0; http_client_body; classtype:web-application-attack; sid:1000008; rev:1;)
+
+# SMB/Windows Attacks
+alert tcp any any -> $HOME_NET 445 (msg:"HONEYPOT SMB EternalBlue Exploit Attempt"; flow:to_server,established; content:"|ff|SMB|73|"; content:"|00 00 00 31|"; distance:0; classtype:attempted-admin; sid:1000009; rev:1;)
+
+alert tcp any any -> $HOME_NET 445 (msg:"HONEYPOT SMB Anonymous Login Attempt"; flow:to_server,established; content:"|00 00 00|"; content:"anonymous"; distance:0; classtype:attempted-user; sid:1000010; rev:1;)
+
+# ICS/SCADA Protocol Attacks
+alert tcp any any -> $HOME_NET 502 (msg:"HONEYPOT Modbus Unauthorized Read"; flow:to_server,established; content:"|00 00 00 00|"; offset:0; depth:4; content:"|03|"; distance:2; within:1; classtype:attempted-recon; sid:1000011; rev:1;)
+
+alert tcp any any -> $HOME_NET 502 (msg:"HONEYPOT Modbus Write Command"; flow:to_server,established; content:"|00 00 00 00|"; offset:0; depth:4; content:"|06|"; distance:2; within:1; classtype:attempted-admin; sid:1000012; rev:1;)
+
+alert udp any any -> $HOME_NET 161 (msg:"HONEYPOT SNMP Community String Brute Force"; flow:to_server; content:"|04|public"; classtype:attempted-recon; sid:1000013; rev:1;)
+
+# SQL Injection Attempts
+alert tcp any any -> $HOME_NET 3306 (msg:"HONEYPOT MySQL Login Brute Force"; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 60; classtype:attempted-user; sid:1000014; rev:1;)
+
+alert tcp any any -> $HOME_NET 1433 (msg:"HONEYPOT MSSQL xp_cmdshell Attempt"; flow:to_server,established; content:"xp_cmdshell"; nocase; classtype:attempted-admin; sid:1000015; rev:1;)
+
+# Cryptocurrency Mining Detection
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Crypto Mining Pool Connection"; flow:to_server,established; content:"stratum+tcp"; nocase; classtype:trojan-activity; sid:1000016; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT XMRig Miner Detected"; flow:to_server,established; content:"xmrig"; nocase; classtype:trojan-activity; sid:1000017; rev:1;)
+
+# Ransomware Indicators
+alert tcp any any -> $HOME_NET 445 (msg:"HONEYPOT Ransomware SMB Encryption Activity"; flow:to_server,established; content:".encrypted"; nocase; classtype:trojan-activity; sid:1000018; rev:1;)
+
+# IoT Device Scanning
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT IoT Device Scanner"; flow:to_server,established; content:"DVR"; nocase; content:"NVR"; distance:0; nocase; classtype:attempted-recon; sid:1000019; rev:1;)
+
+alert tcp any any -> $HOME_NET 81 (msg:"HONEYPOT IP Camera Default Port Scan"; flow:to_server,established; flags:S; classtype:attempted-recon; sid:1000020; rev:1;)
+
+# Exploit Kit Detection
+alert tcp any any -> $HOME_NET 80 (msg:"HONEYPOT Shellshock Exploit Attempt"; flow:to_server,established; content:"() {"; http_header; classtype:web-application-attack; sid:1000021; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Log4j Exploit Attempt"; flow:to_server,established; content:"${jndi:"; nocase; classtype:attempted-admin; sid:1000022; rev:1;)
+
+# Reverse Shell Detection
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Bash Reverse Shell Attempt"; flow:to_server,established; content:"/bin/bash"; content:"-i"; distance:0; classtype:attempted-admin; sid:1000023; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT Python Reverse Shell"; flow:to_server,established; content:"socket.socket"; content:"subprocess"; distance:0; classtype:attempted-admin; sid:1000024; rev:1;)
+
+# Port Scanning Detection
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT SYN Scan Detected"; flags:S; threshold:type threshold, track by_src, count 20, seconds 10; classtype:attempted-recon; sid:1000025; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"HONEYPOT NULL Scan Detected"; flags:0; threshold:type threshold, track by_src, count 10, seconds 10; classtype:attempted-recon; sid:1000026; rev:1;)
+
+# Backdoor Communication
+alert tcp $HOME_NET any -> any any (msg:"HONEYPOT Potential C2 Beacon Outbound"; flow:to_server,established; dsize:<100; threshold:type threshold, track by_src, count 10, seconds 300; classtype:trojan-activity; sid:1000027; rev:1;)
+
+# Web Application Attacks
+alert tcp any any -> $HOME_NET 80 (msg:"HONEYPOT Directory Traversal Attempt"; flow:to_server,established; content:"../"; http_uri; classtype:web-application-attack; sid:1000028; rev:1;)
+
+alert tcp any any -> $HOME_NET 80 (msg:"HONEYPOT SQL Injection Attempt"; flow:to_server,established; pcre:"/(\%27)|(\')|(\-\-)|(\%23)|(#)/i"; http_uri; classtype:web-application-attack; sid:1000029; rev:1;)
+
+# FTP Attacks
+alert tcp any any -> $HOME_NET 21 (msg:"HONEYPOT FTP Brute Force Attempt"; flow:to_server,established; content:"USER"; threshold:type threshold, track by_src, count 10, seconds 60; classtype:attempted-user; sid:1000030; rev:1;)

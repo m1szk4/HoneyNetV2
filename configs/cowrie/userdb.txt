@@ -1,0 +1,70 @@
+# Cowrie UserDB - Weak credentials for honeypot
+# Format: username:x:password
+# These are intentionally weak to attract attacks
+
+# Common IoT device credentials
+root:x:root
+root:x:admin
+root:x:password
+root:x:123456
+root:x:12345678
+root:x:toor
+root:x:pass
+root:x:raspberry
+
+# Admin accounts
+admin:x:admin
+admin:x:password
+admin:x:1234
+admin:x:123456
+
+# Common service accounts
+user:x:user
+guest:x:guest
+test:x:test
+support:x:support
+
+# IoT device defaults
+ubnt:x:ubnt
+pi:x:raspberry
+oracle:x:oracle
+postgres:x:postgres
+
+# Generic weak passwords
+root:x:
+admin:x:
+root:x:root123
+admin:x:admin123
+user:x:user123
+
+# Mirai botnet common credentials
+root:x:xc3511
+root:x:vizxv
+root:x:admin
+root:x:888888
+root:x:xmhdipc
+root:x:default
+root:x:juantech
+root:x:123456
+root:x:54321
+admin:x:admin
+root:x:support
+root:x:pass
+admin:x:password
+root:x:root
+root:x:12345
+user:x:user
+admin:x:
+root:x:pass
+admin:x:admin1234
+root:x:1111
+admin:x:smcadmin
+root:x:klv1234
+Administrator:x:admin
+service:x:service
+supervisor:x:supervisor
+guest:x:guest
+guest:x:12345
+admin:x:meinsm
+tech:x:tech
+mother:x:fucker

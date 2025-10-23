@@ -1,0 +1,95 @@
+<!-- HoneyNetV2 ClickHouse Users Configuration -->
+<clickhouse>
+    <users>
+        <!-- Honeypot application user -->
+        <honeynet>
+            <!-- Password will be set via environment variable in Docker -->
+            <!-- SHA256 hash of password, or use plaintext with <password> tag -->
+            <password_sha256_hex></password_sha256_hex>
+
+            <!-- User can connect from any host -->
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+
+            <!-- Profile for this user -->
+            <profile>default</profile>
+
+            <!-- Quota for this user -->
+            <quota>default</quota>
+
+            <!-- Database access -->
+            <grants>
+                <database>honeynet</database>
+            </grants>
+
+            <!-- Allow access to honeynet database -->
+            <allow_databases>
+                <database>honeynet</database>
+            </allow_databases>
+        </honeynet>
+
+        <!-- Read-only user for Grafana -->
+        <grafana>
+            <password_sha256_hex></password_sha256_hex>
+
+            <networks>
+                <ip>172.21.0.0/24</ip>  <!-- Management network only -->
+            </networks>
+
+            <profile>readonly</profile>
+            <quota>default</quota>
+
+            <allow_databases>
+                <database>honeynet</database>
+            </allow_databases>
+
+            <!-- Read-only access -->
+            <readonly>1</readonly>
+        </grafana>
+
+        <!-- Admin user (use with caution) -->
+        <admin>
+            <password_sha256_hex></password_sha256_hex>
+
+            <networks>
+                <ip>172.21.0.0/24</ip>
+                <ip>127.0.0.1</ip>
+            </networks>
+
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </admin>
+    </users>
+
+    <profiles>
+        <!-- Default profile -->
+        <default>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <use_uncompressed_cache>0</use_uncompressed_cache>
+            <load_balancing>random</load_balancing>
+        </default>
+
+        <!-- Read-only profile for Grafana -->
+        <readonly>
+            <readonly>1</readonly>
+            <max_memory_usage>5000000000</max_memory_usage>
+            <use_uncompressed_cache>0</use_uncompressed_cache>
+            <load_balancing>random</load_balancing>
+        </readonly>
+    </profiles>
+
+    <quotas>
+        <default>
+            <interval>
+                <duration>3600</duration>
+                <queries>0</queries>
+                <errors>0</errors>
+                <result_rows>0</result_rows>
+                <read_rows>0</read_rows>
+                <execution_time>0</execution_time>
+            </interval>
+        </default>
+    </quotas>
+</clickhouse>

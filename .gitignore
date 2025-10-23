@@ -205,3 +205,66 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =============================================================================
+# HoneyNetV2 Specific
+# =============================================================================
+
+# Data directories (runtime data, logs, captures)
+data/
+*.pcap
+*.pcapng
+
+# Reports
+reports/
+
+# Ansible
+*.retry
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ClickHouse data
+clickhouse_data/
+
+# Grafana data (provisioned dashboards are kept)
+grafana_data/
+
+# Logstash sincedb files
+*.sincedb
+
+# Malware samples (IMPORTANT! Never commit malware)
+*.exe
+*.dll
+*.bin
+*.elf
+*.mips
+downloads/
+binaries/
+
+# SSH keys (if accidentally placed here)
+*.pem
+*.key
+id_rsa*
+*.ppk
+
+# Certificates
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Keep example files
+!.env.example
