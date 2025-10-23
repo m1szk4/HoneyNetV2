@@ -1,0 +1,346 @@
+---
+# Ansible Playbook for IoT Honeypot Backup
+# Purpose: Backup configurations, data, and logs from honeypot system
+# Usage: ansible-playbook -i inventory 99-backup.yml
+# Schedule: Weekly via cron (0 2 * * 0)
+
+- name: Backup IoT Honeypot System
+  hosts: honeypot_servers
+  become: yes
+  vars:
+    project_root: /opt/iot-honeynet
+    backup_root: "{{ project_root }}/backups"
+    backup_date: "{{ ansible_date_time.date }}"
+    backup_dir: "{{ backup_root }}/backup_{{ backup_date }}"
+    backup_retention_days: 30
+    backup_password: "{{ lookup('env', 'BACKUP_PASSWORD') | default('changeme', true) }}"
+    clickhouse_container: clickhouse
+    export_days: 7  # Number of days of recent data to export
+
+  tasks:
+    - name: Display backup information
+      debug:
+        msg: "Starting backup process for {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }}"
+
+    - name: Create backup directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0750'
+      loop:
+        - "{{ backup_root }}"
+        - "{{ backup_dir }}"
+        - "{{ backup_dir }}/configs"
+        - "{{ backup_dir }}/data"
+        - "{{ backup_dir }}/logs"
+
+    # =========================================================================
+    # Backup Configurations
+    # =========================================================================
+
+    - name: Archive configuration files
+      archive:
+        path:
+          - "{{ project_root }}/configs"
+          - "{{ project_root }}/docker-compose.yml"
+          - "{{ project_root }}/scripts"
+        dest: "{{ backup_dir }}/configs/configs_{{ backup_date }}.tar.gz"
+        format: gz
+        mode: '0640'
+      register: config_archive
+
+    - name: Display config backup size
+      debug:
+        msg: "Configuration backup size: {{ (config_archive.archived | map(attribute='size') | sum / 1024 / 1024) | round(2) }} MB"
+
+    # =========================================================================
+    # Backup Environment File (Encrypted)
+    # =========================================================================
+
+    - name: Check if .env file exists
+      stat:
+        path: "{{ project_root }}/.env"
+      register: env_file
+
+    - name: Archive and encrypt .env file
+      when: env_file.stat.exists
+      block:
+        - name: Create temporary directory for encryption
+          tempfile:
+            state: directory
+            suffix: _env_backup
+          register: temp_dir
+
+        - name: Copy .env to temp location
+          copy:
+            src: "{{ project_root }}/.env"
+            dest: "{{ temp_dir.path }}/.env"
+            remote_src: yes
+            mode: '0600'
+
+        - name: Encrypt .env file with OpenSSL
+          shell: |
+            tar -czf - -C {{ temp_dir.path }} .env | \
+            openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -pass pass:"{{ backup_password }}" \
+            -out {{ backup_dir }}/configs/env_encrypted_{{ backup_date }}.tar.gz.enc
+          args:
+            creates: "{{ backup_dir }}/configs/env_encrypted_{{ backup_date }}.tar.gz.enc"
+          no_log: true
+
+        - name: Remove temporary directory
+          file:
+            path: "{{ temp_dir.path }}"
+            state: absent
+
+        - name: Create decryption instructions
+          copy:
+            dest: "{{ backup_dir }}/configs/DECRYPTION_INSTRUCTIONS.txt"
+            content: |
+              To decrypt the .env file backup:
+
+              openssl enc -d -aes-256-cbc -pbkdf2 \
+                -in env_encrypted_{{ backup_date }}.tar.gz.enc \
+                -out env_{{ backup_date }}.tar.gz \
+                -pass pass:YOUR_BACKUP_PASSWORD
+
+              tar -xzf env_{{ backup_date }}.tar.gz
+
+              WARNING: This file contains sensitive credentials.
+              Store securely and delete after restoration.
+            mode: '0640'
+
+    # =========================================================================
+    # Export Recent ClickHouse Data
+    # =========================================================================
+
+    - name: Check if ClickHouse container is running
+      command: docker ps -q -f name={{ clickhouse_container }}
+      register: clickhouse_running
+      changed_when: false
+
+    - name: Export recent ClickHouse data
+      when: clickhouse_running.stdout != ""
+      block:
+        - name: Export events table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.events \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/events_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/events_{{ backup_date }}.parquet"
+
+        - name: Export ssh_events table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.ssh_events \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/ssh_events_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/ssh_events_{{ backup_date }}.parquet"
+
+        - name: Export ids_alerts table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.ids_alerts \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/ids_alerts_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/ids_alerts_{{ backup_date }}.parquet"
+
+        - name: Export http_events table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.http_events \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/http_events_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/http_events_{{ backup_date }}.parquet"
+          ignore_errors: yes  # Table may be empty
+
+        - name: Export downloaded_files table
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.downloaded_files \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/downloaded_files_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/downloaded_files_{{ backup_date }}.parquet"
+          ignore_errors: yes  # Table may be empty
+
+        - name: Export database schema
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT create_table_query FROM system.tables \
+              WHERE database = 'honeynet'" > {{ backup_dir }}/data/schema_{{ backup_date }}.sql
+          args:
+            creates: "{{ backup_dir }}/data/schema_{{ backup_date }}.sql"
+
+    # =========================================================================
+    # Backup Important Logs
+    # =========================================================================
+
+    - name: Copy recent system logs
+      shell: |
+        if [ -d {{ project_root }}/logs ]; then
+          find {{ project_root }}/logs -name "*.log" -mtime -7 \
+          -exec cp {} {{ backup_dir }}/logs/ \;
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: Export Docker container logs
+      shell: |
+        for container in $(docker ps --format '{{{{.Names}}'); do
+          docker logs --tail=1000 "$container" > {{ backup_dir }}/logs/"${container}_{{ backup_date }}.log" 2>&1 || true
+        done
+      args:
+        executable: /bin/bash
+
+    # =========================================================================
+    # Create Backup Manifest
+    # =========================================================================
+
+    - name: Generate backup manifest
+      shell: |
+        cat > {{ backup_dir }}/MANIFEST.txt << EOF
+        IoT Honeypot Backup Manifest
+        =============================
+
+        Backup Date: {{ backup_date }}
+        Backup Time: {{ ansible_date_time.iso8601 }}
+        Hostname: {{ inventory_hostname }}
+        System: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+        Backup Contents:
+        ----------------
+        $(find {{ backup_dir }} -type f -exec du -h {} \; | sort -h -r)
+
+        Total Backup Size:
+        ------------------
+        $(du -sh {{ backup_dir }} | cut -f1)
+
+        Restoration Instructions:
+        -------------------------
+        1. Extract configuration backup:
+           tar -xzf configs/configs_{{ backup_date }}.tar.gz -C /opt/iot-honeynet/
+
+        2. Decrypt and restore .env file:
+           See configs/DECRYPTION_INSTRUCTIONS.txt
+
+        3. Import ClickHouse data (if needed):
+           cat data/events_{{ backup_date }}.parquet | docker exec -i clickhouse \\
+           clickhouse-client --query="INSERT INTO honeynet.events FORMAT Parquet"
+
+        4. Restart services:
+           cd /opt/iot-honeynet && docker-compose up -d
+
+        Generated by Ansible at {{ ansible_date_time.iso8601 }}
+        EOF
+      args:
+        executable: /bin/bash
+
+    # =========================================================================
+    # Compress Final Backup
+    # =========================================================================
+
+    - name: Create compressed backup archive
+      archive:
+        path: "{{ backup_dir }}"
+        dest: "{{ backup_root }}/honeypot_backup_{{ backup_date }}.tar.gz"
+        format: gz
+        remove: yes  # Remove source directory after archiving
+      register: final_archive
+
+    - name: Display final backup size
+      debug:
+        msg: "Final backup size: {{ (final_archive.archived | map(attribute='size') | sum / 1024 / 1024) | round(2) }} MB"
+
+    # =========================================================================
+    # Cleanup Old Backups
+    # =========================================================================
+
+    - name: Remove backups older than {{ backup_retention_days }} days
+      find:
+        paths: "{{ backup_root }}"
+        patterns: "honeypot_backup_*.tar.gz"
+        age: "{{ backup_retention_days }}d"
+        file_type: file
+      register: old_backups
+
+    - name: Delete old backup files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+      when: old_backups.files | length > 0
+
+    - name: Display cleanup results
+      debug:
+        msg: "Removed {{ old_backups.files | length }} old backup(s)"
+
+    # =========================================================================
+    # Optional: Copy to Remote Storage
+    # =========================================================================
+
+    # Uncomment and configure for remote backup storage
+    # - name: Copy backup to remote server
+    #   synchronize:
+    #     src: "{{ backup_root }}/honeypot_backup_{{ backup_date }}.tar.gz"
+    #     dest: "user@backup-server:/backups/honeypot/"
+    #     mode: push
+    #   delegate_to: "{{ inventory_hostname }}"
+
+    # - name: Upload to S3 (if AWS CLI configured)
+    #   shell: |
+    #     aws s3 cp {{ backup_root }}/honeypot_backup_{{ backup_date }}.tar.gz \
+    #     s3://your-bucket/honeypot-backups/
+    #   when: lookup('env', 'AWS_ACCESS_KEY_ID') != ''
+
+    # =========================================================================
+    # Generate Backup Report
+    # =========================================================================
+
+    - name: Create backup summary report
+      set_fact:
+        backup_report: |
+          ========================================
+          IoT Honeypot Backup Summary
+          ========================================
+          Date: {{ backup_date }}
+          Time: {{ ansible_date_time.time }}
+          Host: {{ inventory_hostname }}
+
+          Backup Location:
+          {{ backup_root }}/honeypot_backup_{{ backup_date }}.tar.gz
+
+          Status: SUCCESS
+
+          Next Steps:
+          - Verify backup integrity
+          - Test restoration procedure
+          - Copy to offsite storage (if configured)
+
+          Retention: {{ backup_retention_days }} days
+          ========================================
+
+    - name: Display backup summary
+      debug:
+        msg: "{{ backup_report.split('\n') }}"
+
+    - name: Save backup report to file
+      copy:
+        content: "{{ backup_report }}"
+        dest: "{{ backup_root }}/last_backup_report.txt"
+        mode: '0640'
+
+  handlers:
+    - name: Send backup notification email
+      mail:
+        host: localhost
+        subject: "Honeypot Backup Completed - {{ backup_date }}"
+        body: "{{ backup_report }}"
+        to: "{{ lookup('env', 'ALERT_EMAIL') }}"
+      when: lookup('env', 'ALERT_EMAIL') != ''
+      ignore_errors: yes

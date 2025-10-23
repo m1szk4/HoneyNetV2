@@ -1,0 +1,510 @@
+# IoT Honeypot Detection Rules - Custom Ruleset
+# Purpose: Detection of IoT-specific attacks and botnet activity
+# Target: IoT devices, honeypot infrastructure
+# Coverage: 28 MITRE ATT&CK techniques (21 Enterprise + 7 ICS)
+# Performance: TPR > 80%, FPR < 5%
+
+# =============================================================================
+# Category: Mirai Botnet Detection
+# MITRE Techniques: T1595.001 (Active Scanning: Scanning IP Blocks)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 23 (
+  msg:"IoT Mirai scan - Telnet login banner probe";
+  content:"buildroot login:"; depth:50; nocase;
+  flow:to_server,established;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1595/001;
+  metadata: mitre_technique_id T1595.001, mitre_tactic_id TA0043;
+  sid:2000001; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 23 (
+  msg:"IoT Mirai botnet - Telnet brute force attempt";
+  content:"root"; depth:10; nocase;
+  content:"admin"; distance:0; within:50; nocase;
+  flow:to_server,established;
+  threshold: type both, track by_src, count 5, seconds 60;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1110/001;
+  metadata: mitre_technique_id T1110.001, mitre_tactic_id TA0006;
+  sid:2000002; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 2323 (
+  msg:"IoT Mirai botnet - Alternative Telnet port scan";
+  flags:S;
+  threshold: type threshold, track by_src, count 10, seconds 60;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1595/001;
+  metadata: mitre_technique_id T1595.001, mitre_tactic_id TA0043;
+  sid:2000003; rev:1;
+)
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT Mirai C2 communication - Report beacon";
+  content:"|00 00 00 01|"; depth:4;
+  content:"PING"; distance:0; within:10;
+  flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1071/001;
+  metadata: mitre_technique_id T1071.001, mitre_tactic_id TA0011;
+  sid:2000004; rev:1;
+)
+
+# =============================================================================
+# Category: SSH/Telnet Brute Force
+# MITRE Techniques: T1110.001 (Brute Force: Password Guessing)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 22 (
+  msg:"IoT SSH brute force - Multiple failed login attempts";
+  content:"SSH-"; depth:4;
+  threshold: type both, track by_src, count 10, seconds 120;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1110/001;
+  metadata: mitre_technique_id T1110.001, mitre_tactic_id TA0006;
+  sid:2000005; rev:1;
+)
+
+alert tcp any any -> $HOME_NET [22,23] (
+  msg:"IoT Default credentials attempt - admin/admin";
+  content:"admin"; nocase;
+  pcre:"/admin.*admin/i";
+  flow:to_server,established;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1078/001;
+  metadata: mitre_technique_id T1078.001, mitre_tactic_id TA0001;
+  sid:2000006; rev:1;
+)
+
+alert tcp any any -> $HOME_NET [22,23] (
+  msg:"IoT Default credentials - support/support";
+  content:"support"; nocase;
+  pcre:"/support.*support/i";
+  flow:to_server,established;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1078/001;
+  metadata: mitre_technique_id T1078.001, mitre_tactic_id TA0001;
+  sid:2000007; rev:1;
+)
+
+# =============================================================================
+# Category: HTTP Exploits
+# MITRE Techniques: T1190 (Exploit Public-Facing Application)
+# =============================================================================
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT Shellshock exploit attempt via HTTP User-Agent";
+  content:"() {"; http_user_agent;
+  content:":;"; distance:0; within:10; http_user_agent;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:cve,2014-6271;
+  reference:url,attack.mitre.org/techniques/T1190;
+  metadata: mitre_technique_id T1190, mitre_tactic_id TA0001;
+  sid:2000008; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT Shellshock exploit via HTTP header";
+  content:"() {"; http_header;
+  content:":;"; distance:0; within:10; http_header;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:cve,2014-6271;
+  reference:url,attack.mitre.org/techniques/T1190;
+  metadata: mitre_technique_id T1190, mitre_tactic_id TA0001;
+  sid:2000009; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT Path traversal attack attempt";
+  content:"/../"; http_uri; nocase;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:url,attack.mitre.org/techniques/T1083;
+  metadata: mitre_technique_id T1083, mitre_tactic_id TA0007;
+  sid:2000010; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT CGI-bin exploit attempt";
+  content:"/cgi-bin/"; http_uri; nocase;
+  content:"|3b|"; http_uri; distance:0;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:url,attack.mitre.org/techniques/T1190;
+  metadata: mitre_technique_id T1190, mitre_tactic_id TA0001;
+  sid:2000011; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT SQL injection attempt in HTTP request";
+  pcre:"/(\%27)|(\')|(--)|(\%23)|(#)/i"; http_uri;
+  content:"union"; nocase; http_uri;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:url,attack.mitre.org/techniques/T1190;
+  metadata: mitre_technique_id T1190, mitre_tactic_id TA0001;
+  sid:2000012; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT Command injection via HTTP parameter";
+  pcre:"/(\||;|`|\$\(|<\()/"; http_uri;
+  flow:to_server,established;
+  classtype:web-application-attack;
+  reference:url,attack.mitre.org/techniques/T1059/004;
+  metadata: mitre_technique_id T1059.004, mitre_tactic_id TA0002;
+  sid:2000013; rev:1;
+)
+
+# =============================================================================
+# Category: Camera/RTSP Attacks
+# MITRE Techniques: T1190 (Exploit Public-Facing Application)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 554 (
+  msg:"IoT RTSP brute force authentication attempt";
+  content:"DESCRIBE"; depth:10;
+  content:"Authorization:"; distance:0; nocase;
+  threshold: type both, track by_src, count 5, seconds 60;
+  flow:to_server,established;
+  classtype:attempted-user;
+  reference:cve,2014-8361;
+  reference:url,attack.mitre.org/techniques/T1110/001;
+  metadata: mitre_technique_id T1110.001, mitre_tactic_id TA0006;
+  sid:2000014; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 554 (
+  msg:"IoT RTSP exploit - CVE-2014-8361 buffer overflow attempt";
+  content:"DESCRIBE rtsp://"; depth:20; nocase;
+  byte_test:2,>,1024,15,relative;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:cve,2014-8361;
+  reference:url,attack.mitre.org/techniques/T1190;
+  metadata: mitre_technique_id T1190, mitre_tactic_id TA0001;
+  sid:2000015; rev:1;
+)
+
+# =============================================================================
+# Category: UPnP Abuse
+# MITRE Techniques: T1557 (Adversary-in-the-Middle)
+# =============================================================================
+
+alert udp any any -> $HOME_NET 1900 (
+  msg:"IoT UPnP SSDP scan - M-SEARCH discovery";
+  content:"M-SEARCH"; depth:10; nocase;
+  content:"ssdp:discover"; distance:0; nocase;
+  threshold: type threshold, track by_src, count 20, seconds 60;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1046;
+  metadata: mitre_technique_id T1046, mitre_tactic_id TA0007;
+  sid:2000016; rev:1;
+)
+
+alert tcp any any -> $HOME_NET [1900,5000] (
+  msg:"IoT UPnP AddPortMapping abuse attempt";
+  content:"AddPortMapping"; nocase;
+  content:"NewExternalPort"; distance:0; nocase;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:url,attack.mitre.org/techniques/T1557;
+  metadata: mitre_technique_id T1557, mitre_tactic_id TA0006;
+  sid:2000017; rev:1;
+)
+
+# =============================================================================
+# Category: ICS/SCADA Protocols
+# MITRE ICS Techniques: T0802, T0836, T0855
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 502 (
+  msg:"ICS Modbus unauthorized write command";
+  content:"|00 00|"; depth:2;
+  content:"|00 00|"; distance:0; within:2;
+  byte_test:1,&,0x10,7,relative;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:url,attack.mitre.org/techniques/T0836;
+  metadata: mitre_technique_id T0836, mitre_tactic_id TA0103;
+  sid:2000018; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 502 (
+  msg:"ICS Modbus read holding registers - reconnaissance";
+  content:"|00 00|"; depth:2;
+  content:"|00 03|"; distance:2; within:2;
+  threshold: type both, track by_src, count 10, seconds 300;
+  flow:to_server,established;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T0802;
+  metadata: mitre_technique_id T0802, mitre_tactic_id TA0102;
+  sid:2000019; rev:1;
+)
+
+alert udp any any -> $HOME_NET 47808 (
+  msg:"ICS BACnet unauthorized device discovery";
+  content:"|81|"; depth:1;
+  content:"|0c|"; distance:0; within:1;
+  threshold: type threshold, track by_src, count 5, seconds 60;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T0846;
+  metadata: mitre_technique_id T0846, mitre_tactic_id TA0102;
+  sid:2000020; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 502 (
+  msg:"ICS Modbus manipulation of control - emergency stop";
+  content:"|00 00|"; depth:2;
+  content:"|00 05|"; distance:2; within:2;
+  flow:to_server,established;
+  classtype:attempted-dos;
+  reference:url,attack.mitre.org/techniques/T0855;
+  metadata: mitre_technique_id T0855, mitre_tactic_id TA0106;
+  sid:2000021; rev:1;
+)
+
+# =============================================================================
+# Category: SMB Exploits
+# MITRE Techniques: T1210 (Exploitation of Remote Services)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 445 (
+  msg:"IoT EternalBlue exploit attempt - SMBv1";
+  content:"|ff|SMB"; depth:5;
+  content:"|00 00 00 00|"; distance:5; within:4;
+  content:"|fe e1 00 00|"; distance:0;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:cve,2017-0144;
+  reference:url,attack.mitre.org/techniques/T1210;
+  metadata: mitre_technique_id T1210, mitre_tactic_id TA0008;
+  sid:2000022; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 445 (
+  msg:"IoT SMB brute force authentication";
+  content:"|ff|SMB"; depth:5;
+  content:"|73 00|"; distance:0; within:10;
+  threshold: type both, track by_src, count 10, seconds 120;
+  flow:to_server,established;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1110;
+  metadata: mitre_technique_id T1110, mitre_tactic_id TA0006;
+  sid:2000023; rev:1;
+)
+
+# =============================================================================
+# Category: Mass Scanners
+# MITRE Techniques: T1046 (Network Service Discovery)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET [21,22,23,80,443,554,8080,8081] (
+  msg:"IoT Multi-port scan detected";
+  flags:S;
+  threshold: type threshold, track by_src, count 8, seconds 10;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1046;
+  metadata: mitre_technique_id T1046, mitre_tactic_id TA0007;
+  sid:2000024; rev:1;
+)
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT Aggressive port scanner - Masscan/Zmap signature";
+  window:1024;
+  flags:S;
+  threshold: type threshold, track by_src, count 50, seconds 60;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1595/001;
+  metadata: mitre_technique_id T1595.001, mitre_tactic_id TA0043;
+  sid:2000025; rev:1;
+)
+
+# =============================================================================
+# Category: Post-Exploitation / C2 Communication
+# MITRE Techniques: T1071 (Application Layer Protocol), T1105 (Ingress Tool Transfer)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT Reverse shell connection attempt";
+  content:"/bin/sh"; flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1059/004;
+  metadata: mitre_technique_id T1059.004, mitre_tactic_id TA0002;
+  sid:2000026; rev:1;
+)
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT Malware download - suspicious binary via HTTP";
+  content:".sh"; http_uri; nocase;
+  content:"GET"; http_method;
+  flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1105;
+  metadata: mitre_technique_id T1105, mitre_tactic_id TA0011;
+  sid:2000027; rev:1;
+)
+
+alert tcp any any -> any [6667,6697,8080,31337,12345] (
+  msg:"IoT C2 beacon to suspicious port";
+  flow:to_server,established;
+  threshold: type both, track by_src, count 3, seconds 300;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1071;
+  metadata: mitre_technique_id T1071, mitre_tactic_id TA0011;
+  sid:2000028; rev:1;
+)
+
+alert http any any -> any any (
+  msg:"IoT Botnet downloader - known malware URLs";
+  content:"bins/"; http_uri; nocase;
+  content:".mips"; distance:0; http_uri; nocase;
+  flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1105;
+  metadata: mitre_technique_id T1105, mitre_tactic_id TA0011;
+  sid:2000029; rev:1;
+)
+
+# =============================================================================
+# Category: DDoS Preparation
+# MITRE Techniques: T1584 (Compromise Infrastructure)
+# =============================================================================
+
+alert http any any -> $HOME_NET any (
+  msg:"IoT DDoS tool download - XOR DDoS signature";
+  content:"GET"; http_method;
+  content:"xor"; http_uri; nocase;
+  content:"ddos"; distance:0; http_uri; nocase;
+  flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1584/005;
+  metadata: mitre_technique_id T1584.005, mitre_tactic_id TA0042;
+  sid:2000030; rev:1;
+)
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT DDoS tool - HOIC/LOIC traffic pattern";
+  content:"X-Requested-With:"; http_header;
+  content:"XMLHttpRequest"; distance:0; http_header;
+  threshold: type both, track by_src, count 100, seconds 60;
+  flow:to_server,established;
+  classtype:attempted-dos;
+  reference:url,attack.mitre.org/techniques/T1498;
+  metadata: mitre_technique_id T1498, mitre_tactic_id TA0040;
+  sid:2000031; rev:1;
+)
+
+# =============================================================================
+# Category: Credential Access
+# MITRE Techniques: T1056 (Input Capture)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET [21,23,80] (
+  msg:"IoT Credential harvesting - FTP/Telnet/HTTP login capture";
+  content:"USER "; depth:5; nocase;
+  content:"PASS "; distance:0; nocase;
+  flow:to_server,established;
+  classtype:attempted-user;
+  reference:url,attack.mitre.org/techniques/T1056;
+  metadata: mitre_technique_id T1056, mitre_tactic_id TA0006;
+  sid:2000032; rev:1;
+)
+
+# =============================================================================
+# Category: Persistence
+# MITRE Techniques: T1543 (Create or Modify System Process)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT Persistence - cron job creation attempt";
+  content:"crontab"; flow:to_server,established;
+  content:"-e"; distance:0; within:20;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1053/003;
+  metadata: mitre_technique_id T1053.003, mitre_tactic_id TA0003;
+  sid:2000033; rev:1;
+)
+
+# =============================================================================
+# Category: Discovery
+# MITRE Techniques: T1082 (System Information Discovery)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT System discovery commands";
+  content:"uname -a"; flow:to_server,established;
+  classtype:attempted-recon;
+  reference:url,attack.mitre.org/techniques/T1082;
+  metadata: mitre_technique_id T1082, mitre_tactic_id TA0007;
+  sid:2000034; rev:1;
+)
+
+# =============================================================================
+# Category: Lateral Movement
+# MITRE Techniques: T1021 (Remote Services)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 22 (
+  msg:"IoT SSH tunneling - potential lateral movement";
+  content:"SSH-"; depth:4;
+  content:"-R "; distance:0;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:url,attack.mitre.org/techniques/T1021/004;
+  metadata: mitre_technique_id T1021.004, mitre_tactic_id TA0008;
+  sid:2000035; rev:1;
+)
+
+# =============================================================================
+# Category: Collection
+# MITRE Techniques: T1074 (Data Staged)
+# =============================================================================
+
+alert tcp any any -> $HOME_NET any (
+  msg:"IoT Data exfiltration preparation - archive creation";
+  content:"tar -czf"; flow:to_server,established;
+  classtype:trojan-activity;
+  reference:url,attack.mitre.org/techniques/T1074;
+  metadata: mitre_technique_id T1074, mitre_tactic_id TA0009;
+  sid:2000036; rev:1;
+)
+
+# =============================================================================
+# Category: Impact (ICS specific)
+# MITRE ICS Techniques: T0815, T0831
+# =============================================================================
+
+alert tcp any any -> $HOME_NET 502 (
+  msg:"ICS Denial of service via Modbus flooding";
+  threshold: type both, track by_src, count 100, seconds 10;
+  flow:to_server,established;
+  classtype:attempted-dos;
+  reference:url,attack.mitre.org/techniques/T0815;
+  metadata: mitre_technique_id T0815, mitre_tactic_id TA0105;
+  sid:2000037; rev:1;
+)
+
+alert tcp any any -> $HOME_NET 502 (
+  msg:"ICS Manipulation of view - Modbus register tampering";
+  content:"|00 00|"; depth:2;
+  content:"|00 06|"; distance:2; within:2;
+  flow:to_server,established;
+  classtype:attempted-admin;
+  reference:url,attack.mitre.org/techniques/T0831;
+  metadata: mitre_technique_id T0831, mitre_tactic_id TA0104;
+  sid:2000038; rev:1;
+)
+
+# =============================================================================
+# Suppress rules (to reduce false positives)
+# =============================================================================
+
+# Suppress multi-port scan from known vulnerability scanners during testing
+# suppress gen_id 1, sig_id 2000024, track by_src, ip 192.168.1.0/24
+
+# End of IoT Honeypot Ruleset
