@@ -1,0 +1,32 @@
+# Logstash Multiple Pipelines Configuration
+# Each pipeline processes logs from a different honeypot/IDS source
+
+- pipeline.id: suricata
+  path.config: "/usr/share/logstash/pipeline/suricata.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+  pipeline.batch.delay: 50
+
+- pipeline.id: cowrie
+  path.config: "/usr/share/logstash/pipeline/cowrie.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+  pipeline.batch.delay: 50
+
+- pipeline.id: zeek
+  path.config: "/usr/share/logstash/pipeline/zeek.conf"
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+  pipeline.batch.delay: 50
+
+- pipeline.id: dionaea
+  path.config: "/usr/share/logstash/pipeline/dionaea.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 50
+  pipeline.batch.delay: 50
+
+- pipeline.id: conpot
+  path.config: "/usr/share/logstash/pipeline/conpot.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 50
+  pipeline.batch.delay: 50

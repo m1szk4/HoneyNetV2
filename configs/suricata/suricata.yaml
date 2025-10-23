@@ -1,0 +1,474 @@
+%YAML 1.1
+---
+
+# Suricata configuration for IoT Honeypot
+# Optimized for detecting IoT-specific attacks and botnet activity
+
+# Network variables
+vars:
+  address-groups:
+    HOME_NET: "[172.20.0.0/24]"  # Honeypot network
+    EXTERNAL_NET: "!$HOME_NET"
+
+    HTTP_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    AIM_SERVERS: "$EXTERNAL_NET"
+    DC_SERVERS: "$HOME_NET"
+    DNP3_SERVER: "$HOME_NET"
+    DNP3_CLIENT: "$HOME_NET"
+    MODBUS_CLIENT: "$HOME_NET"
+    MODBUS_SERVER: "$HOME_NET"
+    ENIP_CLIENT: "$HOME_NET"
+    ENIP_SERVER: "$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
+    GENEVE_PORTS: 6081
+    VXLAN_PORTS: 4789
+    TEREDO_PORTS: 3544
+
+# Default rule path
+default-rule-path: /etc/suricata/rules
+
+rule-files:
+  - suricata.rules
+  - iot-botnet.rules  # Custom IoT detection rules
+  # Uncomment to add Emerging Threats rules
+  # - emerging-malware.rules
+  # - emerging-exploit.rules
+  # - emerging-botcc.rules
+
+# Suricata core configuration
+# Set the default log directory
+default-log-dir: /var/log/suricata/
+
+# Global stats configuration
+stats:
+  enabled: yes
+  interval: 60
+
+# Configure outputs
+outputs:
+  # EVE JSON log - primary output for Logstash
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+
+      # Rotate log every 1 hour or when reaching 500MB
+      rotate-interval: 1h
+      # max-size: 500mb
+
+      types:
+        - alert:
+            payload: yes           # Include packet payload
+            payload-buffer-size: 4kb
+            payload-printable: yes # ASCII representation
+            packet: yes            # Include packet info
+            metadata: yes          # Include rule metadata
+            tagged-packets: yes
+
+        - anomaly:
+            enabled: yes
+            types:
+              # Decode anomalies
+              decode: yes
+              # Stream anomalies
+              stream: yes
+              # Application layer anomalies
+              applayer: yes
+
+        - http:
+            enabled: yes
+            extended: yes     # Extended logging
+            custom: [accept, accept-charset, accept-datetime, accept-encoding,
+                     accept-language, accept-range, age, allow, authorization,
+                     cache-control, connection, content-encoding, content-language,
+                     content-length, content-location, content-md5, content-range,
+                     content-type, cookie, date, dnt, etag, expect, expires, from,
+                     host, if-match, if-modified-since, if-none-match, if-range,
+                     if-unmodified-since, last-modified, link, location, max-forwards,
+                     origin, pragma, proxy-authenticate, proxy-authorization, range,
+                     referer, refresh, retry-after, server, set-cookie, te, trailer,
+                     transfer-encoding, upgrade, user-agent, vary, via, warning,
+                     www-authenticate, x-authenticated-user, x-flash-version,
+                     x-forwarded-for, x-requested-with]
+
+        - dns:
+            enabled: yes
+            query: yes     # Log DNS queries
+            answer: yes    # Log DNS answers
+
+        - tls:
+            enabled: yes
+            extended: yes  # Log extended TLS info
+            session-resumption: yes
+
+        - files:
+            enabled: yes
+            force-magic: yes   # Force file type detection
+            force-hash: [md5, sha256]  # Hash downloaded files
+
+        - ssh:
+            enabled: yes
+
+        - smtp:
+            enabled: yes
+            extended: yes
+
+        - stats:
+            enabled: yes
+            totals: yes       # Stats for all threads merged
+            threads: no       # Per thread stats
+            deltas: no        # Include delta values
+
+        - flow:
+            enabled: no  # Disable to reduce log volume
+
+        # ICS protocol logging
+        - modbus:
+            enabled: yes
+
+        - dnp3:
+            enabled: yes
+
+  # Fast log for quick alert review
+  - fast:
+      enabled: yes
+      filename: fast.log
+      append: yes
+
+  # Unified2 output (for Barnyard2 if needed)
+  - unified2-alert:
+      enabled: no
+      filename: unified2.alert
+
+  # HTTP log
+  - http-log:
+      enabled: yes
+      filename: http.log
+      append: yes
+
+  # TLS log
+  - tls-log:
+      enabled: yes
+      filename: tls.log
+      append: yes
+
+  # DNS log
+  - dns-log:
+      enabled: yes
+      filename: dns.log
+      append: yes
+
+  # Packet capture on alerts
+  - pcap-log:
+      enabled: yes
+      filename: log.pcap
+      limit: 500mb
+      max-files: 10
+      compression: none
+      mode: normal  # or 'sguil' for compatibility
+
+  # Stats log
+  - stats:
+      enabled: yes
+      filename: stats.log
+      append: yes
+      totals: yes
+      threads: no
+
+# Logging configuration
+logging:
+  default-log-level: info
+
+  outputs:
+    - console:
+        enabled: yes
+
+    - file:
+        enabled: yes
+        level: info
+        filename: suricata.log
+
+    - syslog:
+        enabled: no
+        facility: local5
+        format: "[%i] <%d> -- "
+
+# Application layer protocol configuration
+app-layer:
+  protocols:
+    # Enable TLS/SSL
+    tls:
+      enabled: yes
+      detection-ports:
+        dp: 443
+
+    # Enable DCE/RPC
+    dcerpc:
+      enabled: yes
+
+    # Enable FTP
+    ftp:
+      enabled: yes
+
+    # Enable SSH
+    ssh:
+      enabled: yes
+
+    # Enable SMTP
+    smtp:
+      enabled: yes
+      raw-extraction: no
+
+    # HTTP/HTTPS
+    http:
+      enabled: yes
+      libhtp:
+        default-config:
+          personality: IDS
+          request-body-limit: 100kb
+          response-body-limit: 100kb
+          request-body-minimal-inspect-size: 32kb
+          request-body-inspect-window: 4kb
+          response-body-minimal-inspect-size: 40kb
+          response-body-inspect-window: 16kb
+          response-body-decompress-layer-limit: 2
+          http-body-inline: auto
+          swf-decompression:
+            enabled: yes
+            type: both
+            compress-depth: 0
+            decompress-depth: 0
+          double-decode-path: no
+          double-decode-query: no
+
+    # DNS
+    dns:
+      tcp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+      udp:
+        enabled: yes
+        detection-ports:
+          dp: 53
+
+    # Modbus (ICS)
+    modbus:
+      enabled: yes
+      detection-ports:
+        dp: 502
+      stream-depth: 0
+
+    # DNP3 (ICS)
+    dnp3:
+      enabled: yes
+      detection-ports:
+        dp: 20000
+
+    # ENIP/CIP (ICS)
+    enip:
+      enabled: yes
+      detection-ports:
+        dp: 44818
+
+    # SMB
+    smb:
+      enabled: yes
+      detection-ports:
+        dp: 139, 445
+
+    # NFS
+    nfs:
+      enabled: yes
+
+    # TFTP
+    tftp:
+      enabled: yes
+
+    # IKEV2
+    ikev2:
+      enabled: yes
+
+    # KRB5
+    krb5:
+      enabled: yes
+
+    # DHCP
+    dhcp:
+      enabled: yes
+
+    # SNMP
+    snmp:
+      enabled: yes
+
+    # SIP
+    sip:
+      enabled: yes
+
+# Performance tuning
+# Runmode: workers for multi-threading
+runmode: workers
+
+# Define capture method
+af-packet:
+  - interface: eth0
+    threads: auto
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
+
+# Threading configuration
+threading:
+  set-cpu-affinity: no
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 0 ]
+    - worker-cpu-set:
+        cpu: [ "all" ]
+        mode: "exclusive"
+        prio:
+          low: [ 0 ]
+          medium: [ "1-2" ]
+          high: [ 3 ]
+          default: "medium"
+  detect-thread-ratio: 1.0
+
+# Defragmentation settings
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65535
+  max-frags: 65535
+  prealloc: yes
+  timeout: 60
+
+# Flow settings
+flow:
+  memcap: 128mb
+  hash-size: 65536
+  prealloc: 10000
+  emergency-recovery: 30
+  prune-flows: 5
+
+# Stream engine settings
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: auto
+  reassembly:
+    memcap: 256mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+    randomize-chunk-size: yes
+
+# Host table
+host:
+  hash-size: 4096
+  prealloc: 1000
+  memcap: 32mb
+
+# IP Reputation
+reputation-categories-file: /etc/suricata/reputation/categories.txt
+default-reputation-path: /etc/suricata/reputation
+reputation-files:
+ # - reputation.list
+
+# Decoder settings
+decoder:
+  # Teredo decoder
+  teredo:
+    enabled: true
+    ports: $TEREDO_PORTS
+
+  # VXLAN decoder
+  vxlan:
+    enabled: true
+    ports: $VXLAN_PORTS
+
+  # GENEVE decoder
+  geneve:
+    enabled: true
+    ports: $GENEVE_PORTS
+
+# Detect engine settings
+detect:
+  profile: medium
+  custom-values:
+    toclient-groups: 3
+    toserver-groups: 25
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+  prefilter:
+    default: mpm
+
+# Profiling (disable in production for performance)
+profiling:
+  rules:
+    enabled: no
+    filename: rule_perf.log
+    append: yes
+    limit: 10
+    json: yes
+
+  keywords:
+    enabled: no
+    filename: keyword_perf.log
+    append: yes
+
+  rulegroups:
+    enabled: no
+    filename: rule_group_perf.log
+    append: yes
+
+  packets:
+    enabled: no
+    filename: packet_stats.log
+    append: yes
+    csv:
+      enabled: no
+      filename: packet_stats.csv
+
+# PCAP processing
+pcap:
+  - interface: default
+
+# Unix command socket
+unix-command:
+  enabled: auto
+
+# Magic file for file type detection
+magic-file: /usr/share/file/misc/magic
+
+# Exception policy (pass, bypass, drop, reject)
+exception-policy: auto
+
+# GeoIP database (if available)
+# geoip-database: /usr/share/GeoIP/GeoLite2-Country.mmdb
+
+# Checksum validation (useful to disable for some honeypot scenarios)
+# Set to 'no' if you experience high packet loss
+host-mode: auto
+
+# Set the default packet size
+default-packet-size: 1514
+
+# Enable/disable promiscuous mode
+promiscuous: true
