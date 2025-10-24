@@ -36,8 +36,8 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
 └──────────────────────────┬──────────────────────────────────┘
                            │
                     ┌──────▼──────┐
-                    │   Firewall   │
-                    │  (DMZ Rules) │
+                    │  Firewall   │
+                    │ (DMZ Rules) │
                     └──────┬──────┘
                            │
         ┌──────────────────┼──────────────────┐
