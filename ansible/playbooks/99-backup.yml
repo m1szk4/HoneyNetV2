@@ -15,7 +15,8 @@
     backup_retention_days: 30
     backup_password: "{{ lookup('env', 'BACKUP_PASSWORD') | default('changeme', true) }}"
     clickhouse_container: clickhouse
-    export_days: 7  # Number of days of recent data to export
+    # Flexible export period - can be overridden with -e export_days=30
+    export_days: "{{ lookup('env', 'EXPORT_DAYS') | default(7, true) | int }}"
 
   tasks:
     - name: Display backup information
@@ -122,23 +123,15 @@
     - name: Export recent ClickHouse data
       when: clickhouse_running.stdout != ""
       block:
-        - name: Export events table (last {{ export_days }} days)
+        - name: Export honeypot_events table (last {{ export_days }} days)
           shell: |
             docker exec {{ clickhouse_container }} clickhouse-client --query="\
-              SELECT * FROM honeynet.events \
+              SELECT * FROM honeynet.honeypot_events \
               WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
-              FORMAT Parquet" > {{ backup_dir }}/data/events_{{ backup_date }}.parquet
+              FORMAT Parquet" > {{ backup_dir }}/data/honeypot_events_{{ backup_date }}.parquet
           args:
-            creates: "{{ backup_dir }}/data/events_{{ backup_date }}.parquet"
-
-        - name: Export ssh_events table (last {{ export_days }} days)
-          shell: |
-            docker exec {{ clickhouse_container }} clickhouse-client --query="\
-              SELECT * FROM honeynet.ssh_events \
-              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
-              FORMAT Parquet" > {{ backup_dir }}/data/ssh_events_{{ backup_date }}.parquet
-          args:
-            creates: "{{ backup_dir }}/data/ssh_events_{{ backup_date }}.parquet"
+            creates: "{{ backup_dir }}/data/honeypot_events_{{ backup_date }}.parquet"
+          ignore_errors: yes
 
         - name: Export ids_alerts table (last {{ export_days }} days)
           shell: |
@@ -148,18 +141,29 @@
               FORMAT Parquet" > {{ backup_dir }}/data/ids_alerts_{{ backup_date }}.parquet
           args:
             creates: "{{ backup_dir }}/data/ids_alerts_{{ backup_date }}.parquet"
+          ignore_errors: yes
 
-        - name: Export http_events table (last {{ export_days }} days)
+        - name: Export network_connections table (last {{ export_days }} days)
           shell: |
             docker exec {{ clickhouse_container }} clickhouse-client --query="\
-              SELECT * FROM honeynet.http_events \
+              SELECT * FROM honeynet.network_connections \
               WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
-              FORMAT Parquet" > {{ backup_dir }}/data/http_events_{{ backup_date }}.parquet
+              FORMAT Parquet" > {{ backup_dir }}/data/network_connections_{{ backup_date }}.parquet
           args:
-            creates: "{{ backup_dir }}/data/http_events_{{ backup_date }}.parquet"
-          ignore_errors: yes  # Table may be empty
+            creates: "{{ backup_dir }}/data/network_connections_{{ backup_date }}.parquet"
+          ignore_errors: yes
 
-        - name: Export downloaded_files table
+        - name: Export http_requests table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.http_requests \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/http_requests_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/http_requests_{{ backup_date }}.parquet"
+          ignore_errors: yes
+
+        - name: Export downloaded_files table (last {{ export_days }} days)
           shell: |
             docker exec {{ clickhouse_container }} clickhouse-client --query="\
               SELECT * FROM honeynet.downloaded_files \
@@ -167,7 +171,26 @@
               FORMAT Parquet" > {{ backup_dir }}/data/downloaded_files_{{ backup_date }}.parquet
           args:
             creates: "{{ backup_dir }}/data/downloaded_files_{{ backup_date }}.parquet"
-          ignore_errors: yes  # Table may be empty
+          ignore_errors: yes
+
+        - name: Export credentials table (last {{ export_days }} days)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.credentials \
+              WHERE timestamp > now() - INTERVAL {{ export_days }} DAY \
+              FORMAT Parquet" > {{ backup_dir }}/data/credentials_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/credentials_{{ backup_date }}.parquet"
+          ignore_errors: yes
+
+        - name: Export attacker_profiles table (all data)
+          shell: |
+            docker exec {{ clickhouse_container }} clickhouse-client --query="\
+              SELECT * FROM honeynet.attacker_profiles \
+              FORMAT Parquet" > {{ backup_dir }}/data/attacker_profiles_{{ backup_date }}.parquet
+          args:
+            creates: "{{ backup_dir }}/data/attacker_profiles_{{ backup_date }}.parquet"
+          ignore_errors: yes
 
         - name: Export database schema
           shell: |
