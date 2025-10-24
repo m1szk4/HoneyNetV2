@@ -14,7 +14,7 @@ USE honeynet;
 CREATE TABLE IF NOT EXISTS honeypot_events (
     timestamp DateTime,
     event_id String,
-    honeypot_type Enum8('cowrie'=1, 'dionaea'=2, 'conpot'=3, 'rtsp'=4),
+    honeypot_type Enum8('cowrie'=1, 'dionaea'=2, 'conpot'=3, 'rtsp'=4, 'upnp'=5),
     source_ip_hash String,  -- Anonymized IP hash
     source_ip_country String,
     source_port UInt16,
@@ -195,6 +195,36 @@ CREATE TABLE IF NOT EXISTS rtsp_attacks (
     attack_type String,
     rtsp_method String DEFAULT '',
     rtsp_url String DEFAULT '',
+    attack_details String DEFAULT '',  -- JSON string with attack metadata
+    INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 3,
+    INDEX idx_attack_type attack_type TYPE set(20) GRANULARITY 1,
+    INDEX idx_source_hash source_ip_hash TYPE bloom_filter GRANULARITY 1
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (timestamp, attack_type, source_ip_hash)
+TTL timestamp + INTERVAL 90 DAY
+SETTINGS index_granularity = 8192;
+
+-- ============================================================================
+-- UPNP ATTACKS TABLE
+-- Stores UPnP-specific attack events (AddPortMapping abuse, SSDP scans)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS upnp_attacks (
+    timestamp DateTime,
+    attack_id String,
+    source_ip_hash String,  -- Anonymized
+    source_ip_country String DEFAULT '',
+    source_port UInt16,
+    dest_ip String,
+    dest_port UInt16,
+    attack_type String,
+    soap_action String DEFAULT '',
+    upnp_action String DEFAULT '',
+    external_port String DEFAULT '',
+    internal_port String DEFAULT '',
+    internal_client String DEFAULT '',
+    protocol String DEFAULT '',
     attack_details String DEFAULT '',  -- JSON string with attack metadata
     INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 3,
     INDEX idx_attack_type attack_type TYPE set(20) GRANULARITY 1,

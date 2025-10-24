@@ -154,6 +154,35 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # UPnP - Router/IoT Gateway Honeypot
+  upnp:
+    build: ./honeypots/upnp
+    image: honeynet/upnp:latest
+    container_name: honeynet-upnp
+    restart: unless-stopped
+    networks:
+      honeypot_net:
+        ipv4_address: 172.20.0.14
+    ports:
+      - "1900:1900/udp"  # SSDP
+      - "5000:5000"      # HTTP/SOAP
+    volumes:
+      - ./data/upnp:/var/log/upnp:rw
+    environment:
+      - TZ=${TZ:-UTC}
+      - CONTAINER_IP=172.20.0.14
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 256m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # =============================================================================
   # IDS/MONITORING - Analysis Layer
   # =============================================================================
@@ -306,6 +335,7 @@ services:
       - ./data/dionaea:/input/dionaea:ro
       - ./data/conpot:/input/conpot:ro
       - ./data/rtsp:/input/rtsp:ro
+      - ./data/upnp:/input/upnp:ro
       - ./data/suricata:/input/suricata:ro
       - ./data/zeek:/input/zeek:ro
     environment:
