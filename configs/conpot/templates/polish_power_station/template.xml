@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Conpot ICS/SCADA Honeypot - Polish Power Distribution Station Profile
+  Profil: Polska stacja dystrybucji energii elektrycznej
+  Location: Katowice, Poland
+  Organization: Energetyka Śląska S.A.
+-->
+<conpot_template name="Polish Power Distribution Station">
+    <core description="Stacja Dystrybucji Energii - Katowice Centrum">
+        <information>
+            <!-- Device identification -->
+            <device_name>PLC_Katowice_Centrum_01</device_name>
+            <device_type>Siemens S7-1200 PLC</device_type>
+            <vendor>Siemens AG</vendor>
+            <location>Katowice, Śląskie, Polska</location>
+            <coordinates>50.2649° N, 19.0238° E</coordinates>
+
+            <!-- Organization details -->
+            <organization>Energetyka Śląska S.A.</organization>
+            <department>Dział Automatyki i Sterowania</department>
+            <facility_type>Stacja Transformatorowa 110/15kV</facility_type>
+
+            <!-- Technical specifications -->
+            <firmware_version>V4.2.3 PL</firmware_version>
+            <hardware_version>6ES7 214-1AG40-0XB0</hardware_version>
+            <serial_number>PL-KAT-2019-00847</serial_number>
+            <commissioning_date>2019-03-15</commissioning_date>
+
+            <!-- Network configuration -->
+            <ip_address>172.20.0.12</ip_address>
+            <subnet_mask>255.255.255.0</subnet_mask>
+            <gateway>172.20.0.1</gateway>
+            <dns_primary>8.8.8.8</dns_primary>
+
+            <!-- Contact information -->
+            <administrator>Jan Kowalski</administrator>
+            <contact_email>j.kowalski@energetyka-slaska.pl</contact_email>
+            <contact_phone>+48 32 123 4567</contact_phone>
+            <emergency_contact>+48 32 123 4500</emergency_contact>
+        </information>
+
+        <protocols>
+            <!-- Modbus TCP - Industrial protocol for PLC communication -->
+            <modbus enabled="true"
+                    host="0.0.0.0"
+                    port="502"
+                    device_id="1"
+                    device_description="Sterownik główny stacji transformatorowej"
+                    unit_identifier="0x01"/>
+
+            <!-- SNMP - Network management protocol -->
+            <snmp enabled="true"
+                  host="0.0.0.0"
+                  port="161"
+                  community_string="public"
+                  system_description="Siemens S7-1200, Stacja Katowice Centrum"
+                  system_location="Katowice, ul. Energetyczna 47, Polska"
+                  system_contact="NOC Energetyka Śląska, noc@energetyka-slaska.pl"
+                  system_name="PLC_Katowice_Centrum_01"/>
+
+            <!-- HTTP - Web interface -->
+            <http enabled="true"
+                  host="0.0.0.0"
+                  port="80"
+                  server_name="Siemens SIMATIC HMI"
+                  server_header="Siemens-SIMATIC/4.2"/>
+
+            <!-- S7comm - Siemens S7 communication protocol -->
+            <s7comm enabled="true"
+                    host="0.0.0.0"
+                    port="102"
+                    device_name="S7-1200 KAT01"
+                    module_type="CPU 1214C"
+                    plant_identification="ENERGETYKA_SLASKA_KAT"
+                    copyright="Siemens AG"/>
+
+            <!-- BACnet - Building automation protocol -->
+            <bacnet enabled="true"
+                    host="0.0.0.0"
+                    port="47808"
+                    device_id="389001"
+                    device_name="PLC_KAT_Centrum"
+                    vendor_name="Siemens"
+                    model_name="BACnet-MS/TP"/>
+
+            <!-- IPMI - Intelligent Platform Management Interface -->
+            <ipmi enabled="true"
+                  host="0.0.0.0"
+                  port="623"
+                  manufacturer_name="Siemens"
+                  product_name="Industrial Server"/>
+        </protocols>
+
+        <!-- Monitoring points / Process variables -->
+        <process_data>
+            <!-- Voltage measurements (kV) -->
+            <variable name="V_Line1_110kV" type="float" unit="kV" initial="110.2" description="Napięcie linia 1 - strona WN"/>
+            <variable name="V_Line2_110kV" type="float" unit="kV" initial="110.5" description="Napięcie linia 2 - strona WN"/>
+            <variable name="V_Bus_15kV" type="float" unit="kV" initial="15.1" description="Napięcie szyny SN"/>
+
+            <!-- Current measurements (A) -->
+            <variable name="I_Line1_110kV" type="float" unit="A" initial="423.7" description="Prąd linia 1 - strona WN"/>
+            <variable name="I_Line2_110kV" type="float" unit="A" initial="385.2" description="Prąd linia 2 - strona WN"/>
+            <variable name="I_Transformer1" type="float" unit="A" initial="891.5" description="Prąd transformator T1"/>
+
+            <!-- Power measurements (MW) -->
+            <variable name="P_Active_Total" type="float" unit="MW" initial="67.3" description="Moc czynna całkowita"/>
+            <variable name="P_Reactive_Total" type="float" unit="MVAr" initial="12.8" description="Moc bierna całkowita"/>
+            <variable name="PowerFactor" type="float" unit="" initial="0.982" description="Współczynnik mocy"/>
+
+            <!-- Frequency -->
+            <variable name="Frequency" type="float" unit="Hz" initial="50.02" description="Częstotliwość sieci"/>
+
+            <!-- Transformer status -->
+            <variable name="Transformer1_Temp" type="float" unit="°C" initial="67.3" description="Temperatura oleju transformator T1"/>
+            <variable name="Transformer2_Temp" type="float" unit="°C" initial="64.8" description="Temperatura oleju transformator T2"/>
+            <variable name="Transformer1_Load" type="float" unit="%" initial="78.5" description="Obciążenie transformator T1"/>
+            <variable name="Transformer2_Load" type="float" unit="%" initial="71.2" description="Obciążenie transformator T2"/>
+
+            <!-- Circuit breakers status (0=open, 1=closed) -->
+            <variable name="CB_Line1_Status" type="bool" initial="1" description="Wyłącznik linia 1 - status"/>
+            <variable name="CB_Line2_Status" type="bool" initial="1" description="Wyłącznik linia 2 - status"/>
+            <variable name="CB_Bus_Coupler" type="bool" initial="1" description="Wyłącznik sprzęgła szyn - status"/>
+
+            <!-- Protection relays -->
+            <variable name="Relay_Overcurrent_L1" type="bool" initial="0" description="Zabezpieczenie nadprądowe L1"/>
+            <variable name="Relay_Overcurrent_L2" type="bool" initial="0" description="Zabezpieczenie nadprądowe L2"/>
+            <variable name="Relay_Differential" type="bool" initial="0" description="Zabezpieczenie różnicowe"/>
+
+            <!-- Alarms -->
+            <variable name="Alarm_HighTemp" type="bool" initial="0" description="Alarm - wysoka temperatura"/>
+            <variable name="Alarm_Overload" type="bool" initial="0" description="Alarm - przeciążenie"/>
+            <variable name="Alarm_UndervoltAge" type="bool" initial="0" description="Alarm - podnapięcie"/>
+
+            <!-- System status -->
+            <variable name="System_Operating_Hours" type="int" unit="h" initial="47823" description="Licznik godzin pracy"/>
+            <variable name="System_Healthy" type="bool" initial="1" description="System sprawny"/>
+            <variable name="Remote_Control_Enabled" type="bool" initial="1" description="Zdalne sterowanie aktywne"/>
+        </process_data>
+    </core>
+</conpot_template>

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Modbus TCP Configuration for Polish Power Distribution Station
+  Konfiguracja Modbus TCP dla polskiej stacji dystrybucji energii
+
+  Register Map (Mapa rejestrów):
+  - 0-99:     Voltage measurements (Pomiary napięcia)
+  - 100-199:  Current measurements (Pomiary prądu)
+  - 200-299:  Power measurements (Pomiary mocy)
+  - 300-399:  Temperature measurements (Pomiary temperatury)
+  - 400-499:  Status registers (Rejestry stanu)
+  - 500-599:  Control registers (Rejestry sterowania)
+  - 600-699:  Alarms (Alarmy)
+  - 700-799:  Configuration (Konfiguracja)
+  - 800-899:  Statistics (Statystyki)
+-->
+<modbus>
+    <slave id="1" description="Siemens S7-1200 - Stacja Katowice Centrum">
+        <!-- Holding Registers (Function 03 - Read, Function 06/16 - Write) -->
+        <blocks>
+            <!-- Voltage Measurements (kV * 10) -->
+            <block name="Voltage_Measurements" start="0" size="20">
+                <register address="0" value="1102" type="uint16" description="Napięcie L1 110kV (x0.1)"/>
+                <register address="1" value="1105" type="uint16" description="Napięcie L2 110kV (x0.1)"/>
+                <register address="2" value="151" type="uint16" description="Napięcie szyna 15kV (x0.1)"/>
+                <register address="3" value="400" type="uint16" description="Napięcie fazowe L1-N (x1V)"/>
+                <register address="4" value="398" type="uint16" description="Napięcie fazowe L2-N (x1V)"/>
+                <register address="5" value="401" type="uint16" description="Napięcie fazowe L3-N (x1V)"/>
+                <register address="6" value="1103" type="uint16" description="Napięcie średnie WN (x0.1)"/>
+                <register address="7" value="150" type="uint16" description="Napięcie średnie SN (x0.1)"/>
+            </block>
+
+            <!-- Current Measurements (A * 10) -->
+            <block name="Current_Measurements" start="100" size="20">
+                <register address="100" value="4237" type="uint16" description="Prąd L1 WN (x0.1A)"/>
+                <register address="101" value="3852" type="uint16" description="Prąd L2 WN (x0.1A)"/>
+                <register address="102" value="8915" type="uint16" description="Prąd transformator T1 (x0.1A)"/>
+                <register address="103" value="8103" type="uint16" description="Prąd transformator T2 (x0.1A)"/>
+                <register address="104" value="1247" type="uint16" description="Prąd wyjście 1 SN (x0.1A)"/>
+                <register address="105" value="1189" type="uint16" description="Prąd wyjście 2 SN (x0.1A)"/>
+                <register address="106" value="1053" type="uint16" description="Prąd wyjście 3 SN (x0.1A)"/>
+            </block>
+
+            <!-- Power Measurements -->
+            <block name="Power_Measurements" start="200" size="30">
+                <!-- Active Power (MW * 10) -->
+                <register address="200" value="673" type="uint16" description="Moc czynna całkowita (x0.1MW)"/>
+                <register address="201" value="342" type="uint16" description="Moc czynna T1 (x0.1MW)"/>
+                <register address="202" value="331" type="uint16" description="Moc czynna T2 (x0.1MW)"/>
+
+                <!-- Reactive Power (MVAr * 10) -->
+                <register address="210" value="128" type="uint16" description="Moc bierna całkowita (x0.1MVAr)"/>
+                <register address="211" value="67" type="uint16" description="Moc bierna T1 (x0.1MVAr)"/>
+                <register address="212" value="61" type="uint16" description="Moc bierna T2 (x0.1MVAr)"/>
+
+                <!-- Apparent Power (MVA * 10) -->
+                <register address="220" value="685" type="uint16" description="Moc pozorna całkowita (x0.1MVA)"/>
+
+                <!-- Power Factor (* 1000) -->
+                <register address="225" value="982" type="uint16" description="Współczynnik mocy (x0.001)"/>
+
+                <!-- Frequency (Hz * 100) -->
+                <register address="230" value="5002" type="uint16" description="Częstotliwość (x0.01Hz)"/>
+
+                <!-- Energy counters (MWh) -->
+                <register address="240" value="45678" type="uint32" description="Energia czynna całkowita (MWh) - HIGH"/>
+                <register address="241" value="12340" type="uint32" description="Energia czynna całkowita (MWh) - LOW"/>
+                <register address="242" value="8934" type="uint32" description="Energia bierna całkowita (MVArh) - HIGH"/>
+                <register address="243" value="5621" type="uint32" description="Energia bierna całkowita (MVArh) - LOW"/>
+            </block>
+
+            <!-- Temperature Measurements (°C * 10) -->
+            <block name="Temperature_Measurements" start="300" size="20">
+                <register address="300" value="673" type="uint16" description="Temperatura oleju T1 (x0.1°C)"/>
+                <register address="301" value="648" type="uint16" description="Temperatura oleju T2 (x0.1°C)"/>
+                <register address="302" value="712" type="uint16" description="Temperatura uzwojenia T1 (x0.1°C)"/>
+                <register address="303" value="685" type="uint16" description="Temperatura uzwojenia T2 (x0.1°C)"/>
+                <register address="304" value="234" type="uint16" description="Temperatura otoczenia (x0.1°C)"/>
+                <register address="305" value="456" type="uint16" description="Temperatura rozdzielnicy WN (x0.1°C)"/>
+                <register address="306" value="387" type="uint16" description="Temperatura rozdzielnicy SN (x0.1°C)"/>
+            </block>
+
+            <!-- Status Registers (Binary status indicators) -->
+            <block name="Status_Registers" start="400" size="50">
+                <!-- Circuit Breakers Status (1=closed, 0=open) -->
+                <register address="400" value="1" type="uint16" description="Wyłącznik L1 WN - status"/>
+                <register address="401" value="1" type="uint16" description="Wyłącznik L2 WN - status"/>
+                <register address="402" value="1" type="uint16" description="Wyłącznik sprzęgło szyn - status"/>
+                <register address="403" value="1" type="uint16" description="Wyłącznik wyjście 1 SN - status"/>
+                <register address="404" value="1" type="uint16" description="Wyłącznik wyjście 2 SN - status"/>
+                <register address="405" value="1" type="uint16" description="Wyłącznik wyjście 3 SN - status"/>
+
+                <!-- Disconnectors Status -->
+                <register address="410" value="1" type="uint16" description="Odłącznik L1 WN - status"/>
+                <register address="411" value="1" type="uint16" description="Odłącznik L2 WN - status"/>
+                <register address="412" value="1" type="uint16" description="Odłącznik T1 - status"/>
+                <register address="413" value="1" type="uint16" description="Odłącznik T2 - status"/>
+
+                <!-- Transformer Load (% * 10) -->
+                <register address="420" value="785" type="uint16" description="Obciążenie T1 (x0.1%)"/>
+                <register address="421" value="712" type="uint16" description="Obciążenie T2 (x0.1%)"/>
+
+                <!-- Protection Status (0=OK, 1=Tripped) -->
+                <register address="430" value="0" type="uint16" description="Zabezpieczenie nadprądowe L1"/>
+                <register address="431" value="0" type="uint16" description="Zabezpieczenie nadprądowe L2"/>
+                <register address="432" value="0" type="uint16" description="Zabezpieczenie różnicowe T1"/>
+                <register address="433" value="0" type="uint16" description="Zabezpieczenie różnicowe T2"/>
+                <register address="434" value="0" type="uint16" description="Zabezpieczenie ziemnozwarciowe"/>
+                <register address="435" value="0" type="uint16" description="Zabezpieczenie Buchholza T1"/>
+                <register address="436" value="0" type="uint16" description="Zabezpieczenie Buchholza T2"/>
+
+                <!-- System Status -->
+                <register address="440" value="1" type="uint16" description="System sprawny"/>
+                <register address="441" value="1" type="uint16" description="Zdalne sterowanie aktywne"/>
+                <register address="442" value="0" type="uint16" description="Tryb serwisowy"/>
+                <register address="443" value="1" type="uint16" description="Zasilanie pomocnicze OK"/>
+            </block>
+
+            <!-- Control Registers (Write for SCADA control) -->
+            <block name="Control_Registers" start="500" size="50">
+                <register address="500" value="0" type="uint16" description="Komenda wyłącznik L1 WN (1=Zamknij,2=Otwórz)"/>
+                <register address="501" value="0" type="uint16" description="Komenda wyłącznik L2 WN"/>
+                <register address="502" value="0" type="uint16" description="Komenda sprzęgło szyn"/>
+                <register address="503" value="0" type="uint16" description="Komenda wyjście 1 SN"/>
+                <register address="504" value="0" type="uint16" description="Komenda wyjście 2 SN"/>
+                <register address="505" value="0" type="uint16" description="Komenda wyjście 3 SN"/>
+
+                <!-- Reset commands -->
+                <register address="520" value="0" type="uint16" description="Reset alarmów"/>
+                <register address="521" value="0" type="uint16" description="Reset zabezpieczeń"/>
+                <register address="522" value="0" type="uint16" description="Reset liczników"/>
+
+                <!-- Mode control -->
+                <register address="530" value="1" type="uint16" description="Tryb pracy (0=Local,1=Remote,2=Auto)"/>
+                <register address="531" value="1" type="uint16" description="Enable zdalnego sterowania"/>
+            </block>
+
+            <!-- Alarm Registers (Bit-mapped alarms) -->
+            <block name="Alarm_Registers" start="600" size="50">
+                <register address="600" value="0" type="uint16" description="Alarm wysoka temperatura T1"/>
+                <register address="601" value="0" type="uint16" description="Alarm wysoka temperatura T2"/>
+                <register address="602" value="0" type="uint16" description="Alarm przeciążenie T1"/>
+                <register address="603" value="0" type="uint16" description="Alarm przeciążenie T2"/>
+                <register address="604" value="0" type="uint16" description="Alarm podnapięcie"/>
+                <register address="605" value="0" type="uint16" description="Alarm nadnapięcie"/>
+                <register address="606" value="0" type="uint16" description="Alarm nadprąd"/>
+                <register address="607" value="0" type="uint16" description="Alarm zwarcie"/>
+                <register address="608" value="0" type="uint16" description="Alarm brak komunikacji"/>
+                <register address="609" value="0" type="uint16" description="Alarm poziom oleju"/>
+                <register address="610" value="0" type="uint16" description="Alarm wentylacja"/>
+            </block>
+
+            <!-- Configuration Registers -->
+            <block name="Configuration" start="700" size="50">
+                <register address="700" value="1" type="uint16" description="Unit ID"/>
+                <register address="701" value="502" type="uint16" description="Modbus TCP Port"/>
+                <register address="702" value="11000" type="uint16" description="Rated voltage WN (kV*100)"/>
+                <register address="703" value="1500" type="uint16" description="Rated voltage SN (kV*100)"/>
+                <register address="704" value="40000" type="uint16" description="Transformer power T1 (kVA)"/>
+                <register address="705" value="40000" type="uint16" description="Transformer power T2 (kVA)"/>
+
+                <!-- Device Information -->
+                <register address="710" value="0x5369" type="uint16" description="Vendor ID - 'Si' (Siemens)"/>
+                <register address="711" value="0x656D" type="uint16" description="Vendor ID - 'em' (Siemens)"/>
+                <register address="712" value="0x0742" type="uint16" description="Model Code S7-1200"/>
+                <register address="713" value="0x0423" type="uint16" description="Firmware v4.2.3"/>
+            </block>
+
+            <!-- Statistics and Counters -->
+            <block name="Statistics" start="800" size="50">
+                <register address="800" value="47823" type="uint32" description="Licznik godzin pracy - HIGH"/>
+                <register address="801" value="0" type="uint32" description="Licznik godzin pracy - LOW"/>
+                <register address="802" value="234" type="uint16" description="Liczba wyłączeń L1"/>
+                <register address="803" value="189" type="uint16" description="Liczba wyłączeń L2"/>
+                <register address="804" value="12" type="uint16" description="Liczba zadziałań zabezpieczeń"/>
+                <register address="805" value="347" type="uint16" description="Liczba alarmów"/>
+                <register address="806" value="1458" type="uint16" description="Dni od uruchomienia"/>
+                <register address="807" value="3" type="uint16" description="Liczba awarii"/>
+            </block>
+        </blocks>
+
+        <!-- Input Registers (Function 04 - Read Only, same as holding but read-only) -->
+        <input_registers>
+            <!-- Mirror critical measurements as read-only -->
+            <register address="30000" value="1102" type="uint16" description="Napięcie L1 WN (readonly)"/>
+            <register address="30001" value="1105" type="uint16" description="Napięcie L2 WN (readonly)"/>
+            <register address="30002" value="673" type="uint16" description="Moc czynna (readonly)"/>
+            <register address="30003" value="5002" type="uint16" description="Częstotliwość (readonly)"/>
+        </input_registers>
+
+        <!-- Coils (Function 01 - Read, 05/15 - Write, single bit) -->
+        <coils>
+            <coil address="0" value="1" description="CB L1 WN Status/Control"/>
+            <coil address="1" value="1" description="CB L2 WN Status/Control"/>
+            <coil address="2" value="1" description="CB Sprzęgło szyn"/>
+            <coil address="3" value="1" description="CB Wyjście 1 SN"/>
+            <coil address="4" value="1" description="CB Wyjście 2 SN"/>
+            <coil address="5" value="1" description="CB Wyjście 3 SN"/>
+            <coil address="10" value="1" description="Remote Control Enable"/>
+            <coil address="11" value="0" description="Service Mode"/>
+            <coil address="12" value="1" description="Auto Mode"/>
+        </coils>
+
+        <!-- Discrete Inputs (Function 02 - Read Only, single bit) -->
+        <discrete_inputs>
+            <input address="10000" value="0" description="Alarm Active"/>
+            <input address="10001" value="1" description="System Healthy"/>
+            <input address="10002" value="0" description="Protection Tripped"/>
+            <input address="10003" value="1" description="AC Power OK"/>
+            <input address="10004" value="0" description="Emergency Stop"/>
+        </discrete_inputs>
+    </slave>
+</modbus>

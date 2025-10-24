@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SNMP MIB Configuration for Polish Power Distribution Station
+  Konfiguracja SNMP MIB dla polskiej stacji dystrybucji energii
+
+  OID Structure:
+  - 1.3.6.1.2.1.1.*     System group (RFC 1213)
+  - 1.3.6.1.2.1.2.*     Interfaces group
+  - 1.3.6.1.4.1.*       Private enterprise OIDs
+  - 1.3.6.1.4.1.4196.*  Siemens AG enterprise OID
+-->
+<snmp>
+    <agent host="0.0.0.0" port="161">
+        <community>
+            <!-- Read-only community -->
+            <string value="public" access="ro"/>
+            <!-- Read-write community (weak for honeypot) -->
+            <string value="private" access="rw"/>
+            <!-- Polish-specific communities -->
+            <string value="energetyka" access="ro"/>
+            <string value="scada2019" access="ro"/>
+        </community>
+
+        <!-- SNMPv3 User Security Model (USM) -->
+        <usm>
+            <user name="admin" auth_protocol="MD5" auth_key="adminpass123" priv_protocol="DES" priv_key="privkey123"/>
+            <user name="operator" auth_protocol="SHA" auth_key="operatorpass" priv_protocol="AES" priv_key="aeskey456"/>
+            <user name="noc" auth_protocol="MD5" auth_key="nocpass2019" priv_protocol="DES" priv_key="nocpriv19"/>
+        </usm>
+    </agent>
+
+    <!-- System Group (1.3.6.1.2.1.1.*) -->
+    <system>
+        <!-- sysDescr -->
+        <object oid="1.3.6.1.2.1.1.1.0" type="OctetString" value="Siemens SIMATIC S7-1200 CPU 1214C, Stacja Transformatorowa Katowice Centrum, Energetyka Śląska S.A., Wersja firmware V4.2.3 PL, System SCADA WinCC"/>
+
+        <!-- sysObjectID -->
+        <object oid="1.3.6.1.2.1.1.2.0" type="ObjectIdentifier" value="1.3.6.1.4.1.4196.1.1.14"/>
+
+        <!-- sysUpTime (hundredths of a second) - ~553 days -->
+        <object oid="1.3.6.1.2.1.1.3.0" type="TimeTicks" value="4782300000"/>
+
+        <!-- sysContact -->
+        <object oid="1.3.6.1.2.1.1.4.0" type="OctetString" value="NOC Energetyka Śląska S.A., Jan Kowalski, tel: +48 32 123 4567, email: noc@energetyka-slaska.pl"/>
+
+        <!-- sysName -->
+        <object oid="1.3.6.1.2.1.1.5.0" type="OctetString" value="PLC_Katowice_Centrum_01"/>
+
+        <!-- sysLocation -->
+        <object oid="1.3.6.1.2.1.1.6.0" type="OctetString" value="Katowice, ul. Energetyczna 47, 40-111 Katowice, województwo śląskie, Polska"/>
+
+        <!-- sysServices (application layer = 72) -->
+        <object oid="1.3.6.1.2.1.1.7.0" type="Integer" value="72"/>
+    </system>
+
+    <!-- Interfaces Group (1.3.6.1.2.1.2.*) -->
+    <interfaces>
+        <!-- ifNumber -->
+        <object oid="1.3.6.1.2.1.2.1.0" type="Integer" value="2"/>
+
+        <!-- Interface 1: Ethernet Port -->
+        <interface index="1">
+            <!-- ifDescr -->
+            <object oid="1.3.6.1.2.1.2.2.1.2.1" type="OctetString" value="Ethernet Port X1 - Sieć SCADA"/>
+            <!-- ifType (ethernetCsmacd = 6) -->
+            <object oid="1.3.6.1.2.1.2.2.1.3.1" type="Integer" value="6"/>
+            <!-- ifMtu -->
+            <object oid="1.3.6.1.2.1.2.2.1.4.1" type="Integer" value="1500"/>
+            <!-- ifSpeed (100 Mbps) -->
+            <object oid="1.3.6.1.2.1.2.2.1.5.1" type="Gauge32" value="100000000"/>
+            <!-- ifPhysAddress (MAC address) -->
+            <object oid="1.3.6.1.2.1.2.2.1.6.1" type="OctetString" value="00:1b:1b:4e:8a:2f"/>
+            <!-- ifAdminStatus (up = 1) -->
+            <object oid="1.3.6.1.2.1.2.2.1.7.1" type="Integer" value="1"/>
+            <!-- ifOperStatus (up = 1) -->
+            <object oid="1.3.6.1.2.1.2.2.1.8.1" type="Integer" value="1"/>
+            <!-- ifLastChange -->
+            <object oid="1.3.6.1.2.1.2.2.1.9.1" type="TimeTicks" value="34567890"/>
+            <!-- ifInOctets -->
+            <object oid="1.3.6.1.2.1.2.2.1.10.1" type="Counter32" value="4567823945"/>
+            <!-- ifInUcastPkts -->
+            <object oid="1.3.6.1.2.1.2.2.1.11.1" type="Counter32" value="38947562"/>
+            <!-- ifInErrors -->
+            <object oid="1.3.6.1.2.1.2.2.1.14.1" type="Counter32" value="23"/>
+            <!-- ifOutOctets -->
+            <object oid="1.3.6.1.2.1.2.2.1.16.1" type="Counter32" value="3456789123"/>
+            <!-- ifOutUcastPkts -->
+            <object oid="1.3.6.1.2.1.2.2.1.17.1" type="Counter32" value="29384756"/>
+            <!-- ifOutErrors -->
+            <object oid="1.3.6.1.2.1.2.2.1.20.1" type="Counter32" value="12"/>
+        </interface>
+
+        <!-- Interface 2: PROFINET Port -->
+        <interface index="2">
+            <object oid="1.3.6.1.2.1.2.2.1.2.2" type="OctetString" value="PROFINET Port X2 - Sieć przemysłowa"/>
+            <object oid="1.3.6.1.2.1.2.2.1.3.2" type="Integer" value="6"/>
+            <object oid="1.3.6.1.2.1.2.2.1.4.2" type="Integer" value="1500"/>
+            <object oid="1.3.6.1.2.1.2.2.1.5.2" type="Gauge32" value="100000000"/>
+            <object oid="1.3.6.1.2.1.2.2.1.6.2" type="OctetString" value="00:1b:1b:4e:8a:30"/>
+            <object oid="1.3.6.1.2.1.2.2.1.7.2" type="Integer" value="1"/>
+            <object oid="1.3.6.1.2.1.2.2.1.8.2" type="Integer" value="1"/>
+            <object oid="1.3.6.1.2.1.2.2.1.9.2" type="TimeTicks" value="34567890"/>
+            <object oid="1.3.6.1.2.1.2.2.1.10.2" type="Counter32" value="2345678901"/>
+            <object oid="1.3.6.1.2.1.2.2.1.11.2" type="Counter32" value="19283746"/>
+            <object oid="1.3.6.1.2.1.2.2.1.14.2" type="Counter32" value="8"/>
+            <object oid="1.3.6.1.2.1.2.2.1.16.2" type="Counter32" value="1987654321"/>
+            <object oid="1.3.6.1.2.1.2.2.1.17.2" type="Counter32" value="15648392"/>
+            <object oid="1.3.6.1.2.1.2.2.1.20.2" type="Counter32" value="5"/>
+        </interface>
+    </interfaces>
+
+    <!-- Siemens Private Enterprise MIB (1.3.6.1.4.1.4196.*) -->
+    <enterprise oid="1.3.6.1.4.1.4196">
+        <!-- Device Information -->
+        <object oid="1.3.6.1.4.1.4196.1.1.1.0" type="OctetString" value="Siemens AG"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.2.0" type="OctetString" value="SIMATIC S7-1200"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.3.0" type="OctetString" value="CPU 1214C DC/DC/DC"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.4.0" type="OctetString" value="6ES7 214-1AG40-0XB0"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.5.0" type="OctetString" value="PL-KAT-2019-00847"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.6.0" type="OctetString" value="V4.2.3 PL"/>
+        <object oid="1.3.6.1.4.1.4196.1.1.7.0" type="OctetString" value="2019-03-15"/>
+
+        <!-- Station Information -->
+        <object oid="1.3.6.1.4.1.4196.1.2.1.0" type="OctetString" value="Stacja Transformatorowa Katowice Centrum"/>
+        <object oid="1.3.6.1.4.1.4196.1.2.2.0" type="OctetString" value="Energetyka Śląska S.A."/>
+        <object oid="1.3.6.1.4.1.4196.1.2.3.0" type="OctetString" value="110/15kV Transformer Station"/>
+        <object oid="1.3.6.1.4.1.4196.1.2.4.0" type="OctetString" value="KAT-ST-001"/>
+
+        <!-- Voltage Measurements (V) -->
+        <object oid="1.3.6.1.4.1.4196.1.3.1.0" type="Integer" value="110200" description="Napięcie L1 WN (V)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.2.0" type="Integer" value="110500" description="Napięcie L2 WN (V)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.3.0" type="Integer" value="15100" description="Napięcie szyna SN (V)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.4.0" type="Integer" value="5002" description="Częstotliwość (Hz*100)"/>
+
+        <!-- Current Measurements (A*10) -->
+        <object oid="1.3.6.1.4.1.4196.1.3.10.0" type="Integer" value="4237" description="Prąd L1 WN (A*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.11.0" type="Integer" value="3852" description="Prąd L2 WN (A*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.12.0" type="Integer" value="8915" description="Prąd T1 (A*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.13.0" type="Integer" value="8103" description="Prąd T2 (A*10)"/>
+
+        <!-- Power Measurements (kW) -->
+        <object oid="1.3.6.1.4.1.4196.1.3.20.0" type="Integer" value="67300" description="Moc czynna (kW)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.21.0" type="Integer" value="12800" description="Moc bierna (kVAr)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.22.0" type="Integer" value="982" description="Współczynnik mocy (*1000)"/>
+
+        <!-- Temperature Measurements (°C*10) -->
+        <object oid="1.3.6.1.4.1.4196.1.3.30.0" type="Integer" value="673" description="Temperatura oleju T1 (°C*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.31.0" type="Integer" value="648" description="Temperatura oleju T2 (°C*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.32.0" type="Integer" value="712" description="Temperatura uzwojenia T1 (°C*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.3.33.0" type="Integer" value="685" description="Temperatura uzwojenia T2 (°C*10)"/>
+
+        <!-- Status Information -->
+        <object oid="1.3.6.1.4.1.4196.1.4.1.0" type="Integer" value="1" description="CB L1 Status (1=closed)"/>
+        <object oid="1.3.6.1.4.1.4196.1.4.2.0" type="Integer" value="1" description="CB L2 Status (1=closed)"/>
+        <object oid="1.3.6.1.4.1.4196.1.4.3.0" type="Integer" value="785" description="Obciążenie T1 (%*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.4.4.0" type="Integer" value="712" description="Obciążenie T2 (%*10)"/>
+        <object oid="1.3.6.1.4.1.4196.1.4.5.0" type="Integer" value="1" description="System Status (1=OK)"/>
+        <object oid="1.3.6.1.4.1.4196.1.4.6.0" type="Integer" value="1" description="Remote Control (1=enabled)"/>
+
+        <!-- Alarms (0=OK, 1=Alarm) -->
+        <object oid="1.3.6.1.4.1.4196.1.5.1.0" type="Integer" value="0" description="Alarm wysoka temperatura"/>
+        <object oid="1.3.6.1.4.1.4196.1.5.2.0" type="Integer" value="0" description="Alarm przeciążenie"/>
+        <object oid="1.3.6.1.4.1.4196.1.5.3.0" type="Integer" value="0" description="Alarm podnapięcie"/>
+        <object oid="1.3.6.1.4.1.4196.1.5.4.0" type="Integer" value="0" description="Alarm nadprąd"/>
+        <object oid="1.3.6.1.4.1.4196.1.5.5.0" type="Integer" value="0" description="Alarm zabezpieczenie"/>
+
+        <!-- Statistics -->
+        <object oid="1.3.6.1.4.1.4196.1.6.1.0" type="Counter32" value="47823" description="Godziny pracy"/>
+        <object oid="1.3.6.1.4.1.4196.1.6.2.0" type="Counter32" value="234" description="Liczba wyłączeń L1"/>
+        <object oid="1.3.6.1.4.1.4196.1.6.3.0" type="Counter32" value="189" description="Liczba wyłączeń L2"/>
+        <object oid="1.3.6.1.4.1.4196.1.6.4.0" type="Counter32" value="12" description="Zadziałania zabezpieczeń"/>
+        <object oid="1.3.6.1.4.1.4196.1.6.5.0" type="Counter32" value="347" description="Alarmy łącznie"/>
+
+        <!-- Device Configuration -->
+        <object oid="1.3.6.1.4.1.4196.1.7.1.0" type="OctetString" value="WinCC SCADA v7.5"/>
+        <object oid="1.3.6.1.4.1.4196.1.7.2.0" type="OctetString" value="172.20.0.12"/>
+        <object oid="1.3.6.1.4.1.4196.1.7.3.0" type="OctetString" value="Europe/Warsaw"/>
+        <object oid="1.3.6.1.4.1.4196.1.7.4.0" type="OctetString" value="pl_PL"/>
+    </enterprise>
+
+    <!-- Host Resources MIB (1.3.6.1.2.1.25.*) -->
+    <host_resources>
+        <!-- hrSystemUptime -->
+        <object oid="1.3.6.1.2.1.25.1.1.0" type="TimeTicks" value="4782300000"/>
+
+        <!-- hrSystemDate -->
+        <object oid="1.3.6.1.2.1.25.1.2.0" type="DateAndTime" value="2024-10-24,12:30:00.0,+1:0"/>
+
+        <!-- hrSystemProcesses -->
+        <object oid="1.3.6.1.2.1.25.1.6.0" type="Gauge32" value="42"/>
+
+        <!-- hrMemorySize (KB) -->
+        <object oid="1.3.6.1.2.1.25.2.2.0" type="Integer" value="131072"/>
+
+        <!-- hrStorageDescr -->
+        <object oid="1.3.6.1.2.1.25.2.3.1.3.1" type="OctetString" value="Pamięć operacyjna"/>
+        <object oid="1.3.6.1.2.1.25.2.3.1.3.2" type="OctetString" value="Pamięć programu"/>
+        <object oid="1.3.6.1.2.1.25.2.3.1.3.3" type="OctetString" value="Pamięć danych procesu"/>
+
+        <!-- hrDeviceDescr -->
+        <object oid="1.3.6.1.2.1.25.3.2.1.3.1" type="OctetString" value="CPU 1214C DC/DC/DC"/>
+        <object oid="1.3.6.1.2.1.25.3.2.1.3.2" type="OctetString" value="Moduł komunikacyjny CM 1243-5"/>
+        <object oid="1.3.6.1.2.1.25.3.2.1.3.3" type="OctetString" value="Moduł I/O SM 1223"/>
+    </host_resources>
+</snmp>

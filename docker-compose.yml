@@ -95,7 +95,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Conpot - ICS/SCADA Honeypot
+  # Conpot - ICS/SCADA Honeypot (Polish Power Station Profile)
   conpot:
     image: honeynet/conpot:latest
     container_name: honeynet-conpot
@@ -109,11 +109,13 @@ services:
       - "161:161/udp"  # SNMP
       - "47808:47808/udp"  # BACnet
       - "623:623/udp"  # IPMI
+      - "80:8800"      # HTTP (mapped to avoid conflict with Dionaea)
     volumes:
       - ./data/conpot:/var/log/conpot:rw
+      - ./configs/conpot/templates/polish_power_station:/usr/src/conpot/conpot/templates/polish_power_station:ro
     environment:
       - TZ=${TZ:-UTC}
-      - CONPOT_TEMPLATE=default
+      - CONPOT_TEMPLATE=polish_power_station
       - CONPOT_JSON_LOG=/var/log/conpot/conpot.json
     cap_drop:
       - ALL
