@@ -25,6 +25,7 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
   - DMZ network isolation (no outbound connections from honeypots)
   - IP address anonymization (GDPR-compliant)
   - System hardening with Ansible
+  - Host integrity monitoring with AIDE
   - Automated testing and monitoring
 
 ## Architecture
@@ -258,6 +259,25 @@ This prevents compromised honeypots from being used in attacks.
 - Use strong firewall rules on the host
 - Monitor for unusual activity
 - Keep Docker images updated
+
+### Host Integrity Monitoring (AIDE)
+
+AIDE (Advanced Intrusion Detection Environment) monitors the host system for unauthorized changes:
+
+**Installation**:
+```bash
+cd security/aide
+sudo ./aide-init.sh
+sudo ./aide-cron-setup.sh
+```
+
+**Features**:
+- Monitors system binaries, configurations, and honeypot scripts
+- Detects file modifications, additions, and deletions
+- Automated daily scans with email/Discord notifications
+- Integration with incident response workflows
+
+**Documentation**: See [`security/aide/README.md`](security/aide/README.md) for complete setup and usage guide.
 
 ## Maintenance
 
