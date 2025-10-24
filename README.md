@@ -32,7 +32,7 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Internet / Attackers                     │
+│                     Internet / Attackers                    │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                     ┌──────▼──────┐
@@ -51,17 +51,17 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
                            │
         ┌──────────────────┼──────────────────┐
         │           IDS/Monitoring            │
-        │  ┌─────────┬─────────┬─────────┐   │
-        │  │Suricata │  Zeek   │  PCAP   │   │
-        │  └─────────┴─────────┴─────────┘   │
+        │  ┌─────────┬─────────┬─────────┐    │
+        │  │Suricata │  Zeek   │  PCAP   │    │
+        │  └─────────┴─────────┴─────────┘    │
         └─────────────────────────────────────┘
                            │
         ┌──────────────────┼──────────────────┐
         │    Management Network               │
         │    172.21.0.0/24                    │
-        │  ┌──────────┬──────────┬─────────┐ │
-        │  │ClickHouse│ Logstash │ Grafana │ │
-        │  └──────────┴──────────┴─────────┘ │
+        │  ┌──────────┬──────────┬─────────┐  │
+        │  │ClickHouse│ Logstash │ Grafana │  │
+        │  └──────────┴──────────┴─────────┘  │
         │       ┌─────────┐                   │
         │       │ Jupyter │                   │
         │       └─────────┘                   │
