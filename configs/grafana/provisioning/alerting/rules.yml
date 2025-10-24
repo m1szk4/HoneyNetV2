@@ -1,0 +1,358 @@
+# Grafana Unified Alerting - Alert Rules
+# Defines conditions that trigger security alerts
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: HoneyNet Security Alerts
+    folder: Alerting
+    interval: 1m
+    rules:
+      # Critical: High rate of Suricata alerts (>1000/min)
+      - uid: suricata-high-alert-rate
+        title: Suricata High Alert Rate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: # Will use default ClickHouse datasource
+            model:
+              rawSql: |
+                SELECT
+                  toStartOfMinute(timestamp) as time,
+                  count() as alert_count
+                FROM suricata_alerts
+                WHERE timestamp >= now() - INTERVAL 1 MINUTE
+                GROUP BY time
+                ORDER BY time DESC
+                LIMIT 1
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 1000
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "High rate of Suricata alerts detected"
+          description: "Suricata is generating more than 1000 alerts per minute. This may indicate an ongoing attack or scanning activity."
+          runbook: "Check Suricata logs and investigate the source IPs. Review attack patterns in the dashboard."
+        labels:
+          severity: critical
+          source: suricata
+          alertname: SuricataHighAlertRate
+
+      # Critical: Excessive connections to honeypots
+      - uid: honeypot-connection-spike
+        title: Honeypot Connection Spike
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid:
+            model:
+              rawSql: |
+                SELECT
+                  toStartOfMinute(timestamp) as time,
+                  count() as connection_count
+                FROM (
+                  SELECT timestamp FROM cowrie_sessions
+                  UNION ALL
+                  SELECT timestamp FROM dionaea_connections
+                  UNION ALL
+                  SELECT timestamp FROM conpot_events
+                )
+                WHERE timestamp >= now() - INTERVAL 5 MINUTE
+                GROUP BY time
+                ORDER BY time DESC
+                LIMIT 1
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 500
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "Unusual spike in honeypot connections"
+          description: "More than 500 connections per minute detected across all honeypots. Possible coordinated attack."
+          runbook: "Review connection sources and patterns. Check for distributed attacks or botnets."
+        labels:
+          severity: critical
+          source: honeypots
+          alertname: HoneypotConnectionSpike
+
+      # High: Malware capture detected
+      - uid: malware-captured
+        title: Malware Captured
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid:
+            model:
+              rawSql: |
+                SELECT
+                  count() as malware_count
+                FROM dionaea_binaries
+                WHERE timestamp >= now() - INTERVAL 5 MINUTE
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: OK
+        for: 1m
+        annotations:
+          summary: "Malware sample captured by honeypot"
+          description: "Dionaea has captured one or more malware binaries. Immediate analysis recommended."
+          runbook: "Extract and analyze malware samples. Update threat intelligence feeds."
+        labels:
+          severity: high
+          source: dionaea
+          alertname: MalwareCaptured
+
+      # High: Brute force attack detected
+      - uid: brute-force-attack
+        title: SSH/Telnet Brute Force Attack
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid:
+            model:
+              rawSql: |
+                SELECT
+                  src_ip,
+                  count() as attempt_count
+                FROM cowrie_auth
+                WHERE timestamp >= now() - INTERVAL 10 MINUTE
+                  AND success = 0
+                GROUP BY src_ip
+                HAVING attempt_count > 50
+                ORDER BY attempt_count DESC
+                LIMIT 1
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 50
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "SSH/Telnet brute force attack in progress"
+          description: "More than 50 failed authentication attempts detected from a single IP within 10 minutes."
+          runbook: "Identify attacking IP and check if it's part of known botnet. Update blocklists if necessary."
+        labels:
+          severity: high
+          source: cowrie
+          alertname: BruteForceAttack
+
+      # Warning: ICS/SCADA targeted attack
+      - uid: ics-scada-attack
+        title: ICS/SCADA Protocol Attack
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid:
+            model:
+              rawSql: |
+                SELECT
+                  count() as event_count
+                FROM conpot_events
+                WHERE timestamp >= now() - INTERVAL 10 MINUTE
+                  AND (
+                    protocol IN ('modbus', 's7comm', 'bacnet', 'ipmi')
+                    OR event_type IN ('write', 'command')
+                  )
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 10
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "ICS/SCADA protocol attack detected"
+          description: "Multiple write/command operations detected on ICS/SCADA protocols. Potential infrastructure targeting."
+          runbook: "Review Conpot logs for protocol specifics. Document attack patterns for threat intelligence."
+        labels:
+          severity: high
+          source: conpot
+          alertname: ICSScadaAttack
+
+      # Warning: Data pipeline lag
+      - uid: logstash-pipeline-lag
+        title: Log Processing Pipeline Lag
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid:
+            model:
+              rawSql: |
+                SELECT
+                  (now() - max(timestamp)) as lag_seconds
+                FROM (
+                  SELECT timestamp FROM cowrie_sessions
+                  UNION ALL
+                  SELECT timestamp FROM dionaea_connections
+                  UNION ALL
+                  SELECT timestamp FROM suricata_alerts
+                )
+                WHERE timestamp >= now() - INTERVAL 1 HOUR
+              format: time_series
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 300
+                    type: gt
+                  operator:
+                    type: and
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Log processing pipeline experiencing delays"
+          description: "Logstash pipeline lag exceeds 5 minutes. Check Logstash health and ClickHouse performance."
+          runbook: "Check Logstash container logs and ClickHouse query performance. Verify disk space and memory."
+        labels:
+          severity: warning
+          source: infrastructure
+          alertname: LogstashPipelineLag

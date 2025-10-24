@@ -169,6 +169,37 @@ docker-compose logs -f suricata zeek
 docker-compose logs -f pcap
 ```
 
+### Discord Alerting
+
+HoneyNetV2 includes real-time security alerting via Discord webhooks:
+
+**Setup**:
+1. Create Discord webhook in your server
+2. Add webhook URL to `.env`:
+   ```bash
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
+   ```
+3. Restart Grafana: `docker-compose restart grafana`
+
+**Alert Rules**:
+- Critical: High alert rates (>1000/min), connection spikes (>500/min)
+- High: Malware captures, brute force attacks (>50 attempts)
+- Warning: Pipeline delays, resource issues
+
+**Testing**:
+```bash
+# Test webhook connection
+./scripts/test/test_discord_alerts.sh test-webhook
+
+# Simulate Suricata high alert rate
+./scripts/test/test_discord_alerts.sh suricata
+
+# Run all alert tests
+./scripts/test/test_discord_alerts.sh all
+```
+
+**Documentation**: See [`docs/DISCORD_ALERTING.md`](docs/DISCORD_ALERTING.md) for complete setup and customization guide.
+
 ### PCAP Analysis
 
 Access captured network traffic:
@@ -399,6 +430,7 @@ Comprehensive documentation is available in the `docs/` directory:
 ### Deployment & Operations
 - **[Deployment Checklist](docs/deployment_checklist.md)** - Pre-deployment verification checklist
 - **[Attack Scenarios](docs/attack_scenarios.md)** - Attack kill chains and detection examples
+- **[Discord Alerting](docs/DISCORD_ALERTING.md)** - Real-time security alerts and notification configuration
 
 ### Additional Resources
 - **[Agent #6A Enhancements](docs/AGENT_6A_ENHANCEMENTS.md)** - Core system enhancements (GeoIP, MITRE, profiling)
@@ -438,3 +470,6 @@ For issues and questions:
 - **Agent #6a**: ✅ Core enhancements (data export, GeoIP, MITRE, profiling)
 - **Agent #6b**: ✅ Testing, validation, and comprehensive documentation
 - **AgentPCAP**: ✅ Full packet capture with rotation and retention
+- **AgentAIDE**: ✅ Host integrity monitoring with AIDE
+- **AgentConpot**: ✅ Polish power station ICS/SCADA profile
+- **AgentDiscord**: ✅ Real-time Discord alerting integration
