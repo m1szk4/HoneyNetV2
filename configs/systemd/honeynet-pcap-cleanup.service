@@ -1,0 +1,32 @@
+[Unit]
+Description=HoneyNet PCAP Cleanup Service
+Documentation=https://github.com/m1szk4/HoneyNetV2
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+
+# Environment file (optional)
+EnvironmentFile=-/opt/honeynet/.env
+
+# Set default values if not in .env
+Environment="PCAP_RETENTION_DAYS=60"
+Environment="PCAP_DIR=/opt/honeynet/data/pcap"
+
+# Execute cleanup script
+ExecStart=/opt/honeynet/scripts/pcap/cleanup_old_pcaps.sh ${PCAP_RETENTION_DAYS}
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=honeynet-pcap-cleanup
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
