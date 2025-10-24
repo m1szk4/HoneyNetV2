@@ -344,12 +344,54 @@ Built with:
 
 This honeypot infrastructure is for research and educational purposes only. Operators are responsible for compliance with local laws and regulations. Never use honeypots to attack or harm others.
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+### Core Documentation
+- **[Architecture](docs/architecture.md)** - System architecture, network design, and component overview
+- **[Configuration](docs/configuration.md)** - Complete configuration guide for all components
+- **[Data Schema](docs/data_schema.md)** - ClickHouse database schema and table descriptions
+- **[Testing Guide](docs/testing_guide.md)** - Attack scenario testing and validation procedures
+- **[Maintenance](docs/maintenance.md)** - Operations, updates, backups, and troubleshooting
+
+### Deployment & Operations
+- **[Deployment Checklist](docs/deployment_checklist.md)** - Pre-deployment verification checklist
+- **[Attack Scenarios](docs/attack_scenarios.md)** - Attack kill chains and detection examples
+
+### Additional Resources
+- **[Agent #6A Enhancements](docs/AGENT_6A_ENHANCEMENTS.md)** - Core system enhancements (GeoIP, MITRE, profiling)
+- **[Lateral Movement Detection](docs/lateral_movement_detection.md)** - Internal threat detection guide
+
+## Testing
+
+Automated testing suite for validation:
+
+```bash
+# Run all tests
+python3 tests/test_scenarios.py --scenario all
+
+# Run specific attack scenario
+python3 tests/test_scenarios.py --scenario ssh-bruteforce
+
+# List available scenarios
+python3 tests/test_scenarios.py --list
+
+# Infrastructure tests
+python3 tests/test_e2e.py
+python3 tests/test_isolation.py
+python3 tests/test_ports.py
+```
+
 ## Support
 
 For issues and questions:
 - GitHub Issues: https://github.com/m1szk4/HoneyNetV2/issues
-- Documentation: See `docs/` directory (to be created)
+- Documentation: See `docs/` directory
 
 ---
 
-**Agent 1 Complete**: Infrastructure and deployment foundation established!
+**Project Status**:
+- **Agent #1**: ✅ Infrastructure and deployment foundation
+- **Agent #6a**: ✅ Core enhancements (data export, GeoIP, MITRE, profiling)
+- **Agent #6b**: ✅ Testing, validation, and comprehensive documentation
