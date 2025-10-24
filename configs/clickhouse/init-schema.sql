@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS ids_alerts (
     timestamp DateTime,
     alert_id String,
     source_ip_hash String,  -- Anonymized
+    source_ip_country String DEFAULT '',  -- GeoIP country code
     source_port UInt16,
     dest_ip String,
     dest_port UInt16,
@@ -56,9 +57,12 @@ CREATE TABLE IF NOT EXISTS ids_alerts (
     signature_id UInt32,
     revision UInt16,
     payload String DEFAULT '',
+    mitre_technique_id String DEFAULT '',  -- MITRE ATT&CK technique (e.g., T1190)
+    mitre_tactic String DEFAULT '',  -- MITRE ATT&CK tactic (e.g., initial-access)
     INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 3,
     INDEX idx_signature signature_id TYPE set(1000) GRANULARITY 1,
-    INDEX idx_category alert_category TYPE set(50) GRANULARITY 1
+    INDEX idx_category alert_category TYPE set(50) GRANULARITY 1,
+    INDEX idx_mitre_technique mitre_technique_id TYPE set(100) GRANULARITY 1
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (timestamp, alert_severity, source_ip_hash)
@@ -74,6 +78,7 @@ CREATE TABLE IF NOT EXISTS network_connections (
     timestamp DateTime,
     uid String,
     source_ip_hash String,  -- Anonymized
+    source_ip_country String DEFAULT '',  -- GeoIP country code
     source_port UInt16,
     dest_ip String,
     dest_port UInt16,
@@ -105,6 +110,7 @@ SETTINGS index_granularity = 8192;
 CREATE TABLE IF NOT EXISTS http_requests (
     timestamp DateTime,
     source_ip_hash String,  -- Anonymized
+    source_ip_country String DEFAULT '',  -- GeoIP country code
     source_port UInt16,
     dest_ip String,
     dest_port UInt16,
@@ -243,6 +249,57 @@ AS SELECT
     countIf(success) AS success_count
 FROM credentials
 GROUP BY date, username, password;
+
+-- Attacker profile aggregation (populated via scheduled INSERT)
+-- This view helps aggregate attacker data for the attacker_profiles table
+CREATE MATERIALIZED VIEW IF NOT EXISTS attacker_profile_aggregator
+ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (source_ip_hash, date)
+AS SELECT
+    source_ip_hash,
+    toDate(timestamp) AS date,
+    minState(timestamp) AS first_seen,
+    maxState(timestamp) AS last_seen,
+    countState() AS total_events,
+    groupUniqArrayState(dest_port) AS unique_ports,
+    groupUniqArrayState(protocol) AS protocols,
+    groupUniqArrayState(source_ip_country) AS countries,
+    groupUniqArrayState(event_type) AS attack_types
+FROM honeypot_events
+GROUP BY source_ip_hash, date;
+
+-- MITRE ATT&CK statistics view
+CREATE MATERIALIZED VIEW IF NOT EXISTS mitre_attack_stats
+ENGINE = SummingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (date, mitre_tactic, mitre_technique_id)
+AS SELECT
+    toDate(timestamp) AS date,
+    mitre_tactic,
+    mitre_technique_id,
+    count() AS technique_count,
+    uniq(source_ip_hash) AS unique_attackers,
+    uniq(dest_port) AS unique_targets
+FROM ids_alerts
+WHERE mitre_technique_id != ''
+GROUP BY date, mitre_tactic, mitre_technique_id;
+
+-- Geographic attack distribution view
+CREATE MATERIALIZED VIEW IF NOT EXISTS geographic_attack_stats
+ENGINE = SummingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (date, source_ip_country, honeypot_type)
+AS SELECT
+    toDate(timestamp) AS date,
+    source_ip_country,
+    honeypot_type,
+    count() AS attack_count,
+    uniq(source_ip_hash) AS unique_attackers,
+    uniq(dest_port) AS unique_ports_targeted
+FROM honeypot_events
+WHERE source_ip_country != ''
+GROUP BY date, source_ip_country, honeypot_type;
 
 -- Grant permissions (will be used by Logstash)
 -- Note: User creation is handled in users.xml
