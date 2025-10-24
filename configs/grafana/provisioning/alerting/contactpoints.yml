@@ -1,0 +1,73 @@
+# Grafana Unified Alerting - Contact Points Configuration
+# Defines notification channels for sending alerts
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: Discord Security Alerts
+    receivers:
+      - uid: discord-security
+        type: discord
+        settings:
+          # Discord Webhook URL from environment variable
+          url: ${DISCORD_WEBHOOK_URL}
+          # Message title template
+          title: "HoneyNetV2 Security Alert"
+          # Message content template with detailed information
+          message: |-
+            **Alert Name:** {{ .CommonLabels.alertname }}
+            **Severity:** {{ .CommonLabels.severity | default "unknown" }}
+            **Status:** {{ .Status }}
+
+            **Summary:** {{ .CommonAnnotations.summary }}
+
+            **Details:**
+            {{ range .Alerts }}
+            - **Source:** {{ .Labels.source | default "N/A" }}
+            - **Value:** {{ .ValueString }}
+            - **Time:** {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+            {{ if .Annotations.description }}
+            - **Description:** {{ .Annotations.description }}
+            {{ end }}
+            {{ end }}
+
+            **Dashboard:** [View in Grafana]({{ .ExternalURL }})
+          # Use Discord embed format for better visibility
+          use_discord_username: true
+        disableResolveMessage: false
+
+  - orgId: 1
+    name: Discord Critical Alerts
+    receivers:
+      - uid: discord-critical
+        type: discord
+        settings:
+          url: ${DISCORD_WEBHOOK_CRITICAL_URL}
+          title: ":rotating_light: CRITICAL SECURITY INCIDENT :rotating_light:"
+          message: |-
+            @here **IMMEDIATE ATTENTION REQUIRED**
+
+            **Alert:** {{ .CommonLabels.alertname }}
+            **Severity:** CRITICAL
+            **Status:** {{ .Status }}
+
+            **Summary:** {{ .CommonAnnotations.summary }}
+
+            **Critical Details:**
+            {{ range .Alerts }}
+            :warning: **Source:** {{ .Labels.source | default "N/A" }}
+            :chart_with_upwards_trend: **Value:** {{ .ValueString }}
+            :clock1: **Triggered:** {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+            {{ if .Annotations.description }}
+            :memo: **Description:** {{ .Annotations.description }}
+            {{ end }}
+            {{ if .Annotations.runbook }}
+            :book: **Runbook:** {{ .Annotations.runbook }}
+            {{ end }}
+            {{ end }}
+
+            **Action Required:** Review the dashboard immediately
+            :link: **Dashboard:** {{ .ExternalURL }}
+          use_discord_username: true
+        disableResolveMessage: false

@@ -377,6 +377,7 @@ services:
       - grafana_data:/var/lib/grafana:rw
       - ./configs/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ./configs/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./configs/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
     environment:
       - TZ=${TZ:-UTC}
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
@@ -386,6 +387,9 @@ services:
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Discord webhook URLs for alerting
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_WEBHOOK_CRITICAL_URL=${DISCORD_WEBHOOK_CRITICAL_URL:-}
     mem_limit: 512m
     cpus: 0.5
     healthcheck:

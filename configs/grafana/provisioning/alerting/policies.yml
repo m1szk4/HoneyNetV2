@@ -1,0 +1,51 @@
+# Grafana Unified Alerting - Notification Policies
+# Routes alerts to appropriate contact points based on labels
+
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: Discord Security Alerts
+    group_by: ['alertname', 'source']
+    group_wait: 10s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      # Critical alerts route
+      - receiver: Discord Critical Alerts
+        matchers:
+          - severity = critical
+        group_wait: 5s
+        group_interval: 2m
+        repeat_interval: 1h
+        continue: false
+
+      # High severity alerts route
+      - receiver: Discord Security Alerts
+        matchers:
+          - severity = high
+        group_wait: 10s
+        group_interval: 5m
+        repeat_interval: 2h
+        continue: false
+
+      # Warning alerts route
+      - receiver: Discord Security Alerts
+        matchers:
+          - severity = warning
+        group_wait: 30s
+        group_interval: 10m
+        repeat_interval: 6h
+        continue: false
+
+      # Suricata specific high-rate alerts
+      - receiver: Discord Critical Alerts
+        matchers:
+          - alertname = SuricataHighAlertRate
+        group_wait: 5s
+        group_interval: 1m
+        repeat_interval: 30m
+        continue: false
+
+    # Default grouping and timing
+    mute_time_intervals: []
