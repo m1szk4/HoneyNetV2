@@ -16,6 +16,11 @@
   pipeline.workers: 1
   pipeline.batch.size: 125
 
+- pipeline.id: rtsp-pipeline
+  path.config: "/usr/share/logstash/pipeline/rtsp.conf"
+  pipeline.workers: 1
+  pipeline.batch.size: 125
+
 - pipeline.id: suricata-pipeline
   path.config: "/usr/share/logstash/pipeline/suricata.conf"
   pipeline.workers: 2

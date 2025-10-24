@@ -22,6 +22,7 @@ HONEYPOT_PORTS = {
     'Dionaea HTTP Alt': {'port': 8080, 'protocol': 'tcp'},
     'Conpot S7comm': {'port': 102, 'protocol': 'tcp'},
     'Conpot Modbus': {'port': 502, 'protocol': 'tcp'},
+    'RTSP Camera': {'port': 554, 'protocol': 'tcp'},
 }
 
 UDP_PORTS = {

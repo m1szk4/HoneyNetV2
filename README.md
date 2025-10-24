@@ -8,6 +8,7 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
   - **Cowrie**: SSH/Telnet honeypot for capturing brute force attacks and malware
   - **Dionaea**: Multi-protocol honeypot (SMB, HTTP, FTP, MSSQL, MySQL)
   - **Conpot**: ICS/SCADA honeypot for industrial control system attacks
+  - **RTSP**: IP Camera/DVR honeypot with CVE-2014-8361 vulnerability simulation
 
 - **Network Intrusion Detection**:
   - **Suricata**: High-performance IDS with custom rules
@@ -40,10 +41,10 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
         ┌──────────────────┼──────────────────┐
         │      Honeypot Network (DMZ)         │
         │      172.20.0.0/24                  │
-        │  ┌─────────┬─────────┬─────────┐   │
-        │  │ Cowrie  │ Dionaea │ Conpot  │   │
-        │  │ SSH/Tel │ Multi-P │   ICS   │   │
-        │  └─────────┴─────────┴─────────┘   │
+        │  ┌─────────┬─────────┬─────────┬────────┐
+        │  │ Cowrie  │ Dionaea │ Conpot  │  RTSP  │
+        │  │ SSH/Tel │ Multi-P │   ICS   │ Camera │
+        │  └─────────┴─────────┴─────────┴────────┘
         └─────────────────────────────────────┘
                            │
         ┌──────────────────┼──────────────────┐
@@ -97,7 +98,7 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
    Or manually:
    ```bash
    # Create data directories
-   mkdir -p data/{cowrie,dionaea,conpot,suricata,zeek,clickhouse,grafana,logstash}
+   mkdir -p data/{cowrie,dionaea,conpot,rtsp,suricata,zeek,clickhouse,grafana,logstash}
 
    # Start services
    docker-compose up -d
@@ -141,6 +142,7 @@ Key variables in `.env`:
 Honeypot services:
 - 22, 23, 2323: SSH/Telnet (Cowrie)
 - 21, 80, 443, 445, 1433, 3306, 8080: Various protocols (Dionaea)
+- 554: RTSP - IP Camera/DVR (RTSP Honeypot)
 - 102, 502, 161/udp, 47808/udp, 623/udp: ICS protocols (Conpot)
 
 ## Usage
@@ -159,7 +161,7 @@ Generate daily report:
 
 View logs:
 ```bash
-docker-compose logs -f cowrie dionaea conpot
+docker-compose logs -f cowrie dionaea conpot rtsp
 docker-compose logs -f suricata zeek
 ```
 
