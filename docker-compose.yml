@@ -186,6 +186,39 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # PCAP - Full Packet Capture
+  pcap:
+    image: kalilinux/kali-rolling:latest
+    container_name: honeynet-pcap
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./scripts/pcap/capture_traffic.sh:/opt/capture_traffic.sh:ro
+      - ./data/pcap:/data/pcap:rw
+    environment:
+      - TZ=${TZ:-UTC}
+      - PCAP_INTERFACE=${PCAP_INTERFACE:-eth0}
+      - PCAP_DIR=/data/pcap
+      - PCAP_ROTATION_SECONDS=${PCAP_ROTATION_SECONDS:-3600}
+      - PCAP_MAX_SIZE=${PCAP_MAX_SIZE:-1000}
+      - PCAP_SNAPLEN=${PCAP_SNAPLEN:-65535}
+      - PCAP_BUFFER_SIZE=${PCAP_BUFFER_SIZE:-8192}
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    mem_limit: ${PCAP_MEM_LIMIT:-512m}
+    cpus: ${PCAP_CPUS:-0.5}
+    command: >
+      /bin/bash -c "
+      apt-get update -qq &&
+      apt-get install -y -qq tcpdump iproute2 &&
+      /opt/capture_traffic.sh"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # =============================================================================
   # STORAGE & ETL - Data Layer
   # =============================================================================

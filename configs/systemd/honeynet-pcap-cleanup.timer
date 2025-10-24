@@ -1,0 +1,19 @@
+[Unit]
+Description=HoneyNet PCAP Cleanup Timer
+Documentation=https://github.com/m1szk4/HoneyNetV2
+Requires=honeynet-pcap-cleanup.service
+
+[Timer]
+# Run daily at 03:00 AM
+OnCalendar=daily
+OnCalendar=*-*-* 03:00:00
+
+# Run 15 minutes after boot if missed
+Persistent=true
+OnBootSec=15min
+
+# Random delay to avoid exact timing (security)
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -12,6 +12,7 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
 - **Network Intrusion Detection**:
   - **Suricata**: High-performance IDS with custom rules
   - **Zeek**: Network security monitor with protocol analysis
+  - **PCAP Capture**: Full packet capture for forensics and analysis
 
 - **Data Analytics**:
   - **ClickHouse**: High-performance OLAP database for attack data
@@ -48,9 +49,9 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
                            │
         ┌──────────────────┼──────────────────┐
         │           IDS/Monitoring            │
-        │  ┌─────────┐      ┌─────────┐      │
-        │  │Suricata │      │  Zeek   │      │
-        │  └─────────┘      └─────────┘      │
+        │  ┌─────────┬─────────┬─────────┐   │
+        │  │Suricata │  Zeek   │  PCAP   │   │
+        │  └─────────┴─────────┴─────────┘   │
         └─────────────────────────────────────┘
                            │
         ┌──────────────────┼──────────────────┐
@@ -73,7 +74,8 @@ A comprehensive honeypot infrastructure for cybersecurity threat intelligence an
 - Docker 20.10+
 - Docker Compose 2.0+
 - 4GB RAM minimum (8GB recommended)
-- 50GB free disk space
+- 50GB free disk space for logs
+- 500-700GB free disk space for PCAP storage (optional but recommended)
 
 ### Installation
 
@@ -161,6 +163,22 @@ View logs:
 ```bash
 docker-compose logs -f cowrie dionaea conpot
 docker-compose logs -f suricata zeek
+docker-compose logs -f pcap
+```
+
+### PCAP Analysis
+
+Access captured network traffic:
+
+```bash
+# View PCAP files
+ls -lh data/pcap/$(date +%Y-%m-%d)/
+
+# Analyze with tcpdump
+tcpdump -r data/pcap/2025-10-24/capture_20251024_120000.pcap
+
+# Install automatic cleanup (60 days retention)
+sudo ./scripts/pcap/install_systemd.sh
 ```
 
 ### Data Analysis
@@ -352,6 +370,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - **[Architecture](docs/architecture.md)** - System architecture, network design, and component overview
 - **[Configuration](docs/configuration.md)** - Complete configuration guide for all components
 - **[Data Schema](docs/data_schema.md)** - ClickHouse database schema and table descriptions
+- **[PCAP Capture](docs/pcap_capture.md)** - Full packet capture configuration and analysis
 - **[Testing Guide](docs/testing_guide.md)** - Attack scenario testing and validation procedures
 - **[Maintenance](docs/maintenance.md)** - Operations, updates, backups, and troubleshooting
 
@@ -381,6 +400,7 @@ python3 tests/test_scenarios.py --list
 python3 tests/test_e2e.py
 python3 tests/test_isolation.py
 python3 tests/test_ports.py
+python3 tests/test_pcap.py
 ```
 
 ## Support
@@ -395,3 +415,4 @@ For issues and questions:
 - **Agent #1**: ✅ Infrastructure and deployment foundation
 - **Agent #6a**: ✅ Core enhancements (data export, GeoIP, MITRE, profiling)
 - **Agent #6b**: ✅ Testing, validation, and comprehensive documentation
+- **AgentPCAP**: ✅ Full packet capture with rotation and retention

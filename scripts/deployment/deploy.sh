@@ -49,7 +49,7 @@ echo -e "${GREEN}✓ .env file exists${NC}"
 
 # Create data directories if they don't exist
 echo "Creating data directories..."
-mkdir -p data/{cowrie,dionaea,conpot,suricata,zeek,clickhouse,grafana,logstash}
+mkdir -p data/{cowrie,dionaea,conpot,suricata,zeek,clickhouse,grafana,logstash,pcap}
 
 echo -e "${GREEN}✓ Data directories created${NC}"
 
@@ -98,6 +98,21 @@ else
     echo -e "${YELLOW}Warning: test_isolation.py not found or not executable${NC}"
 fi
 
+# Optional: Install PCAP cleanup systemd timer
+echo ""
+echo "======================================================================"
+echo "Optional: PCAP Cleanup Automation"
+echo "======================================================================"
+echo ""
+echo "PCAP capture is now running, but automatic cleanup requires systemd."
+echo "To install the systemd timer for automatic PCAP cleanup (60 days retention):"
+echo ""
+echo "  sudo ./scripts/pcap/install_systemd.sh"
+echo ""
+echo "Or use cron manually:"
+echo "  0 3 * * * /path/to/scripts/pcap/cleanup_old_pcaps.sh 60"
+echo ""
+
 # Print access information
 echo ""
 echo "======================================================================"
@@ -109,15 +124,24 @@ echo "  Grafana:    http://localhost:3000 (admin/admin)"
 echo "  Jupyter:    http://localhost:8888 (token from .env)"
 echo "  ClickHouse: http://localhost:8123"
 echo ""
+echo "PCAP Information:"
+echo "  Location:   ./data/pcap/YYYY-MM-DD/"
+echo "  Rotation:   Hourly (3600 seconds)"
+echo "  Retention:  60 days (requires systemd timer or cron)"
+echo "  Logs:       docker-compose logs -f pcap"
+echo ""
 echo "Next steps:"
 echo "  1. Access Grafana and explore dashboards"
 echo "  2. Monitor honeypot activity: docker-compose logs -f cowrie dionaea conpot"
 echo "  3. View IDS alerts: docker-compose logs -f suricata zeek"
-echo "  4. Run analytics in Jupyter notebooks"
+echo "  4. Check PCAP capture: docker-compose logs -f pcap"
+echo "  5. Install PCAP cleanup: sudo ./scripts/pcap/install_systemd.sh"
+echo "  6. Run analytics in Jupyter notebooks"
 echo ""
 echo "Useful commands:"
 echo "  docker-compose logs -f <service>  # View logs"
 echo "  docker-compose restart <service>  # Restart service"
 echo "  docker-compose down               # Stop all services"
 echo "  docker-compose ps                 # Check status"
+echo "  ls -lh data/pcap/                 # Check PCAP files"
 echo ""
